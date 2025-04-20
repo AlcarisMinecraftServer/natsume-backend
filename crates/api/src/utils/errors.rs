@@ -1,24 +1,26 @@
-use axum::{http::StatusCode, response::{IntoResponse, Response}, Json};
-use serde_json::json;
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
+use crate::models::response::ApiErrorResponse;
 
-pub fn not_found(id: &str) -> Response {
-    (
-        StatusCode::NOT_FOUND,
-        Json(json!({
-            "code": "not_found",
-            "status": 404,
-            "message": format!("item '{}' not found", id)
-        })),
-    ).into_response()
+pub fn item_not_found(id: &str) -> Response {
+    let body = ApiErrorResponse {
+        status: 404,
+        code: "item_not_found",
+        message: format!("Item '{}' not found", id),
+    };
+
+    (StatusCode::NOT_FOUND, Json(body)).into_response()
 }
 
-pub async fn handle_404() -> impl IntoResponse {
-    (
-        StatusCode::NOT_FOUND,
-        Json(json!({
-            "code": "not_found",
-            "status": 404,
-            "message": "The requested resource was not found"
-        })),
-    )
+pub async fn not_found() -> impl IntoResponse {
+    let body = ApiErrorResponse {
+        status: 404,
+        code: "not_found",
+        message: "The requested resource was not found".to_string(),
+    };
+
+    (StatusCode::NOT_FOUND, Json(body)).into_response()
 }

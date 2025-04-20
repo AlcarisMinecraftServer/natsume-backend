@@ -7,18 +7,26 @@ use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing_subscriber::fmt::init;
 
-use routes::items::{list_food_items, list_tool_items, get_item_by_id};
-use utils::errors::handle_404;
+use routes::items::{list_items, create_item, get_item_by_id, update_item_partial, delete_item};
+use utils::errors::not_found;
 
 #[tokio::main]
 async fn main() {
     init();
 
     let app = Router::new()
-        .route("/v1/items/food", get(list_food_items))
-        .route("/v1/items/tool", get(list_tool_items))
-        .route("/v1/items/{id}", get(get_item_by_id))
-        .fallback(handle_404);
+        .route(
+            "/v1/items",
+            get(list_items)
+            .post(create_item)
+        )
+        .route(
+            "/v1/items/{id}",
+            get(get_item_by_id)
+            .patch(update_item_partial)
+            .delete(delete_item)
+        )
+        .fallback(not_found);
 
     let addr: SocketAddr = "127.0.0.1:3000".parse().unwrap();
 
