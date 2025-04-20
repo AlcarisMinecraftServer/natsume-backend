@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 pub struct ToolData {
     pub tool_type: ToolType,
     pub max_damage: i32,
-    pub rules: ToolRules,
+    pub rules: Rules,
     pub upgrades: Vec<Upgrade>,
 }
 
@@ -19,7 +19,7 @@ pub enum ToolType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ToolRules {
+pub struct Rules {
     pub default: Rule,
     pub conditions: Vec<Condition>,
 }
