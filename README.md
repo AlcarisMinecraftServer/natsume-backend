@@ -16,7 +16,7 @@ Natsume is a core component of the Alcaris Network, responsible for managing ite
 - **Language:** Rust
 - **Framework:** Axum
 - **Async Runtime:** Tokio
-- **Database:** MySQL/MariaDB (via SQLx or SeaORM planned)
+- **Database:** PostgreSQL
 - **Serialization:** Serde (for JSON)
 
 ## Getting Started
@@ -34,7 +34,6 @@ make run
 ## Future Plans
 
 - [ ] Authentication & permission system
-- [ ] MySQL schema integration using SQLx or SeaORM
 - [ ] Integration with Alcaris Kubernetes cluster
 
 ## License
