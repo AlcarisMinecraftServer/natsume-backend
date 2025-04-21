@@ -14,7 +14,7 @@ pub struct FoodData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Effect {
     pub effect: String,
-    pub duration: u32,
+    pub duration: i32,
     pub amplifier: u8,
     pub chance: f32,
 }
@@ -24,12 +24,12 @@ pub struct Attribute {
     pub attribute: String,
     pub operation: String,
     pub value: f32,
-    pub duration: u32,
+    pub duration: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Buff {
     pub kind: String,
-    pub duration: u32,
+    pub duration: i32,
     pub amount: f32,
 }

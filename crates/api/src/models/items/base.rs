@@ -8,17 +8,17 @@ pub struct Item {
     pub version: i64,
     pub name: String,
     pub lore: Vec<String>,
-    pub rarity: u8,
-    pub max_stack: u32,
-    pub custom_model_data: u32,
+    pub rarity: i8,
+    pub max_stack: i32,
+    pub custom_model_data: i32,
     pub price: Price,
     pub data: ItemData,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Price {
-    pub buy: u32,
-    pub sell: u32,
+    pub buy: i32,
+    pub sell: i32,
     pub can_sell: bool,
 }
 
