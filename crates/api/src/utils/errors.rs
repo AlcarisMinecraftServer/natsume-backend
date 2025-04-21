@@ -15,7 +15,7 @@ pub fn item_not_found(id: &str) -> Response {
     (StatusCode::NOT_FOUND, Json(body)).into_response()
 }
 
-pub async fn not_found() -> impl IntoResponse {
+pub async fn not_found_handler() -> impl IntoResponse {
     let body = ApiErrorResponse {
         status: 404,
         code: "not_found",
