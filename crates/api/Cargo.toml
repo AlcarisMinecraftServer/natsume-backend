@@ -14,3 +14,4 @@ shared = { version = "0.1.0", path = "../shared" }
 sqlx = { version = "0.8.5", features = ["postgres", "runtime-tokio-rustls", "macros"] }
 tokio = { version = "1.44.2", features = ["full"] }
 tracing-subscriber = "0.3.19"
+dotenvy = "0.15"
