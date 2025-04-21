@@ -1,13 +1,17 @@
 use axum::{
-    extract::{Path, Query}, http::StatusCode, response::{IntoResponse, Response}, Extension, Json
+    Extension, Json,
+    extract::{Path, Query},
+    http::StatusCode,
+    response::{IntoResponse, Response},
 };
 use serde::Deserialize;
 use serde_json::Value;
 use sqlx::{PgPool, Row};
 
-use crate::models::{response::ApiResponse, items::{
-    Item, ItemCategory
-}};
+use crate::models::{
+    items::{Item, ItemCategory},
+    response::ApiResponse,
+};
 use crate::utils::errors::item_not_found;
 
 pub async fn list_items(
@@ -27,7 +31,7 @@ pub async fn list_items(
         let category_str: String = row.get("category");
 
         if let Some(ref filter) = category_filter {
-            if &category_str.to_lowercase() != &filter.to_lowercase() {
+            if category_str.to_lowercase() != filter.to_lowercase() {
                 continue;
             }
         }
@@ -138,7 +142,7 @@ pub async fn create_item(
     .bind(item.max_stack)
     .bind(item.custom_model_data)
     .bind(serde_json::to_value(&item.price).unwrap())
-    .bind(item.data.clone()) 
+    .bind(item.data.clone())
     .execute(&pool)
     .await;
 
@@ -167,7 +171,7 @@ pub async fn create_item(
 pub async fn update_item_partial(
     Path(id): Path<String>,
     Extension(pool): Extension<PgPool>,
-    Json(patch): Json<serde_json::Value>
+    Json(patch): Json<serde_json::Value>,
 ) -> impl IntoResponse {
     let result = sqlx::query("UPDATE items SET data = data || $1 WHERE id = $2")
         .bind(patch)
@@ -179,21 +183,23 @@ pub async fn update_item_partial(
         Ok(_) => Json(serde_json::json!({
             "status": 200,
             "message": "Item updated"
-        })).into_response(),
+        }))
+        .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
                 "status": 500,
                 "code": "db_update_error",
                 "message": format!("Failed to update item: {}", e)
-            }))
-        ).into_response(),
+            })),
+        )
+            .into_response(),
     }
 }
 
 pub async fn delete_item(
     Path(id): Path<String>,
-    Extension(pool): Extension<PgPool>
+    Extension(pool): Extension<PgPool>,
 ) -> impl IntoResponse {
     let result = sqlx::query("DELETE FROM items WHERE id = $1")
         .bind(id)
@@ -204,14 +210,16 @@ pub async fn delete_item(
         Ok(_) => Json(serde_json::json!({
             "status": 200,
             "message": "Item deleted"
-        })).into_response(),
+        }))
+        .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
                 "status": 500,
                 "code": "db_delete_error",
                 "message": format!("Failed to delete item: {}", e)
-            }))
-        ).into_response(),
+            })),
+        )
+            .into_response(),
     }
 }

@@ -6,7 +6,7 @@ fn database_url_from_env() -> String {
     let pass = env::var("POSTGRES_PASSWORD").unwrap();
     let host = env::var("POSTGRES_HOST").unwrap();
     let port = env::var("POSTGRES_PORT").unwrap();
-    let db   = env::var("POSTGRES_DATABASE").unwrap();
+    let db = env::var("POSTGRES_DATABASE").unwrap();
 
     format!("postgres://{}:{}@{}:{}/{}", user, pass, host, port, db)
 }

@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
-use super::{FoodData, ToolData, ArmorData};
+use super::{ArmorData, FoodData, ToolData};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Item {
