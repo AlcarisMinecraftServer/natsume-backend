@@ -7,7 +7,7 @@ Natsume is a core component of the Alcaris Network, responsible for managing ite
 ## Features
 
 - 🚀 Built with [Axum](https://github.com/tokio-rs/axum) and [Tokio](https://tokio.rs/)
-- 🧩 Designed for integration with MySQL-compatible databases (e.g. MariaDB)
+- 🧩 Designed for integration with MySQL-compatible databases (e.g. PostgreSQL)
 - 🛠 JSON serialization via Serde for clean API responses
 - 🌐 Ready for Kubernetes or containerized deployments
 
@@ -29,12 +29,7 @@ make build
 make run
 ```
 
-> Requires Rust >= 1.72 and a MySQL-compatible database.
-
-## Future Plans
-
-- [ ] Authentication & permission system
-- [ ] Integration with Alcaris Kubernetes cluster
+> Requires Rust >= 1.72 and a MySQL-compatible database.r
 
 ## License
 

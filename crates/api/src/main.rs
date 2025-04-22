@@ -15,13 +15,18 @@ use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
+    files::{FileUsecase, FileUsecaseImpl},
     items::{ItemUsecase, ItemUsecaseImpl},
     recipes::{RecipeUsecase, RecipeUsecaseImpl},
 };
 use infrastructure::{
     postgres::pools::connect_pg,
-    repositorys::{item::PostgresItemRepository, recipe::PostgresRecipeRepository},
+    repositorys::{
+        file::PostgresFileRepository, item::PostgresItemRepository,
+        recipe::PostgresRecipeRepository,
+    },
 };
+use routes::files::{delete_file, get_file_metadata, list_files, upload_file};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
 use routes::recipes::{create_recipe, find_all_recipes, find_recipes_by_id};
 use shared::error::not_found_handler;
@@ -67,11 +72,14 @@ async fn main() {
 
     let pool = connect_pg().await;
 
-    let repo_item = PostgresItemRepository::new(pool.clone());
-    let usecase_item = Arc::new(ItemUsecaseImpl::new(repo_item)) as Arc<dyn ItemUsecase>;
+    let item_repo = PostgresItemRepository::new(pool.clone());
+    let item_usecase = Arc::new(ItemUsecaseImpl::new(item_repo)) as Arc<dyn ItemUsecase>;
 
-    let repo_recipe = PostgresRecipeRepository::new(pool.clone());
-    let usecase_recipe = Arc::new(RecipeUsecaseImpl::new(repo_recipe)) as Arc<dyn RecipeUsecase>;
+    let recipe_repo = PostgresRecipeRepository::new(pool.clone());
+    let recipe_usecase = Arc::new(RecipeUsecaseImpl::new(recipe_repo)) as Arc<dyn RecipeUsecase>;
+
+    let file_repo = PostgresFileRepository::new(pool.clone());
+    let file_usecase = Arc::new(FileUsecaseImpl::new(file_repo)) as Arc<dyn FileUsecase>;
 
     let app = Router::new()
         .route("/v1/items", get(find_all_items).post(create_item))
@@ -79,10 +87,13 @@ async fn main() {
             "/v1/items/{id}",
             get(find_item_by_id).patch(patch_item).delete(delete_item),
         )
+        .layer(Extension(item_usecase))
         .route("/v1/recipes", get(find_all_recipes).post(create_recipe))
         .route("/v1/recipes/{id}", get(find_recipes_by_id))
-        .layer(Extension(usecase_item))
-        .layer(Extension(usecase_recipe))
+        .layer(Extension(recipe_usecase))
+        .route("/v1/files", get(list_files).post(upload_file))
+        .route("/v1/files/{id}", get(get_file_metadata).delete(delete_file))
+        .layer(Extension(file_usecase))
         .layer(middleware::from_fn(auth_middleware))
         .fallback(not_found_handler);
 

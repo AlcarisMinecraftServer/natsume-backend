@@ -4,9 +4,15 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rust-s3 = "0.35"
+anyhow = "1.0"
 async-trait = "0.1"
+tracing = { workspace = true }
+axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+chrono = { version = "0.4", features = ["serde"] }
 domain = { path = "../domain" }
 infrastructure = { path= "../infrastructure" }
 shared = { path = "../shared" }
+uuid = { version = "1.16.0", features = ["v4"] }
