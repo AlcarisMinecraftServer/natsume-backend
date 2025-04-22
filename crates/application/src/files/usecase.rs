@@ -119,9 +119,10 @@ impl<R: FileRepository + Send + Sync> FileUsecase for FileUsecaseImpl<R> {
         let response = bucket.delete_object(&key).await?;
         let code = response.status_code();
         if code != 204 && code != 200 {
-            return Err(
-                anyhow::anyhow!("Failed to delete file from R2 (status code {})", code),
-            );
+            return Err(anyhow::anyhow!(
+                "Failed to delete file from R2 (status code {})",
+                code
+            ));
         }
 
         self.repo.delete_metadata(file_id).await
