@@ -60,11 +60,11 @@ pub async fn upload_file(
         .into_response()
 }
 
-pub async fn get_file_metadata(
+pub async fn get_file_by_id(
     Extension(usecase): Extension<Arc<dyn FileUsecase>>,
     Path(file_id): Path<String>,
 ) -> impl IntoResponse {
-    match usecase.get_file(&file_id).await {
+    match usecase.get_file_by_id(&file_id).await {
         Ok(meta) => Json(ApiResponse {
             status: 200,
             data: meta,
@@ -82,11 +82,11 @@ pub async fn get_file_metadata(
     }
 }
 
-pub async fn list_files(
+pub async fn find_all_files(
     Extension(usecase): Extension<Arc<dyn FileUsecase>>,
     Query(FileListQuery { user_id }): Query<FileListQuery>,
 ) -> impl IntoResponse {
-    match usecase.list_files(user_id).await {
+    match usecase.find_all_files(user_id).await {
         Ok(files) => Json(files).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

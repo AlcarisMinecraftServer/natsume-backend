@@ -30,9 +30,9 @@ pub trait FileUsecase: Send + Sync {
         data: Bytes,
     ) -> AppResult<FileMetadata>;
 
-    async fn get_file(&self, file_id: &str) -> AppResult<FileMetadata>;
+    async fn get_file_by_id(&self, file_id: &str) -> AppResult<FileMetadata>;
 
-    async fn list_files(&self, user_id: Option<String>) -> AppResult<Vec<FileMetadata>>;
+    async fn find_all_files(&self, user_id: Option<String>) -> AppResult<Vec<FileMetadata>>;
 
     async fn delete_file(&self, file_id: &str) -> AppResult<()>;
 }
@@ -52,7 +52,7 @@ impl<R: FileRepository + Send + Sync> FileUsecase for FileUsecaseImpl<R> {
         let bucket = env::var("R2_BUCKET_NAME")?;
         let endpoint = env::var("R2_ENDPOINT")?;
         let access_key = env::var("R2_ACCESS_KEY_ID")?;
-        let secret_key = env::var("R2_SECRET_ACCESS_KEY")?;
+        let secret_key = env::var("R2_ACCESS_KEY_SECRET")?;
 
         let region = Region::Custom {
             region: "auto".into(),
@@ -89,11 +89,11 @@ impl<R: FileRepository + Send + Sync> FileUsecase for FileUsecaseImpl<R> {
         Ok(metadata)
     }
 
-    async fn get_file(&self, file_id: &str) -> AppResult<FileMetadata> {
+    async fn get_file_by_id(&self, file_id: &str) -> AppResult<FileMetadata> {
         self.repo.find_metadata(file_id).await
     }
 
-    async fn list_files(&self, user_id: Option<String>) -> AppResult<Vec<FileMetadata>> {
+    async fn find_all_files(&self, user_id: Option<String>) -> AppResult<Vec<FileMetadata>> {
         self.repo.list_metadata(user_id).await
     }
 
@@ -107,7 +107,7 @@ impl<R: FileRepository + Send + Sync> FileUsecase for FileUsecaseImpl<R> {
         let bucket_name = env::var("R2_BUCKET_NAME")?;
         let endpoint = env::var("R2_ENDPOINT")?;
         let access_key = env::var("R2_ACCESS_KEY_ID")?;
-        let secret_key = env::var("R2_SECRET_ACCESS_KEY")?;
+        let secret_key = env::var("R2_ACCESS_KEY_SECRET")?;
 
         let region = Region::Custom {
             region: "auto".into(),
