@@ -80,7 +80,7 @@ impl ItemRepository for PostgresItemRepository {
                 "food" => ItemCategory::Food,
                 "tool" => ItemCategory::Tool,
                 "armor" => ItemCategory::Armor,
-                _ => return Err(anyhow::anyhow!("Invalid category").into()),
+                _ => return Err(anyhow::anyhow!("Invalid category")),
             },
             lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
             rarity: row.get("rarity"),

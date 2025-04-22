@@ -69,7 +69,7 @@ impl<R: FileRepository + Send + Sync> FileUsecase for FileUsecaseImpl<R> {
         let code = response.status_code();
 
         if code != 200 {
-            return Err(anyhow::anyhow!("R2 upload failed (status code {})", code).into());
+            return Err(anyhow::anyhow!("R2 upload failed (status code {})", code));
         }
 
         let metadata = FileMetadata {
@@ -120,7 +120,7 @@ impl<R: FileRepository + Send + Sync> FileUsecase for FileUsecaseImpl<R> {
         let code = response.status_code();
         if code != 204 && code != 200 {
             return Err(
-                anyhow::anyhow!("Failed to delete file from R2 (status code {})", code).into(),
+                anyhow::anyhow!("Failed to delete file from R2 (status code {})", code),
             );
         }
 
