@@ -26,9 +26,11 @@ use infrastructure::{
         recipe::PostgresRecipeRepository,
     },
 };
-use routes::files::{delete_file, get_file_metadata, list_files, upload_file};
+use routes::files::{delete_file, get_file_by_id, find_all_files, upload_file};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
-use routes::recipes::{create_recipe, find_all_recipes, find_recipes_by_id};
+use routes::recipes::{
+    create_recipe, delete_recipe, find_all_recipes, find_recipes_by_id, patch_recipe,
+};
 use shared::error::not_found_handler;
 
 pub async fn auth_middleware(req: Request<Body>, next: Next) -> Result<Response, Response> {
@@ -89,10 +91,15 @@ async fn main() {
         )
         .layer(Extension(item_usecase))
         .route("/v1/recipes", get(find_all_recipes).post(create_recipe))
-        .route("/v1/recipes/{id}", get(find_recipes_by_id))
+        .route(
+            "/v1/recipes/{id}",
+            get(find_recipes_by_id)
+                .patch(patch_recipe)
+                .delete(delete_recipe),
+        )
         .layer(Extension(recipe_usecase))
-        .route("/v1/files", get(list_files).post(upload_file))
-        .route("/v1/files/{id}", get(get_file_metadata).delete(delete_file))
+        .route("/v1/files", get(find_all_files).post(upload_file))
+        .route("/v1/files/{id}", get(get_file_by_id).delete(delete_file))
         .layer(Extension(file_usecase))
         .layer(middleware::from_fn(auth_middleware))
         .fallback(not_found_handler);
