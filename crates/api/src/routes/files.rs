@@ -18,7 +18,7 @@ pub async fn upload_file(
     Query(FileListQuery { user_id }): Query<FileListQuery>,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
-    while let Some(field) = multipart.next_field().await.unwrap() {
+    if let Some(field) = multipart.next_field().await.unwrap() {
         let filename = field.file_name().unwrap_or("file").to_string();
         let content_type = field
             .content_type()
