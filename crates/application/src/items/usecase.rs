@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use domain::items::Item;
-use infrastructure::postgres::item_repository::ItemRepository;
+use infrastructure::repositorys::item::ItemRepository;
 use shared::error::AppResult;
 
 pub struct ItemUsecaseImpl<R: ItemRepository + Send + Sync> {

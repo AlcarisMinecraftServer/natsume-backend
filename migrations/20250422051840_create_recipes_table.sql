@@ -1,0 +1,9 @@
+CREATE TABLE recipes (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    inputs JSONB NOT NULL,
+    output JSONB NOT NULL,
+    is_hidden BOOLEAN NOT NULL DEFAULT FALSE,
+    cooldown INTEGER NOT NULL DEFAULT 0,
+    unlock_level INTEGER NOT NULL DEFAULT 0
+);

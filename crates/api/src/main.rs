@@ -3,9 +3,9 @@ mod routes;
 use std::{env, net::SocketAddr, sync::Arc};
 
 use axum::{
+    Extension, Json, Router,
     body::Body,
-    Json, Extension, Router,
-    http::{StatusCode, Request},
+    http::{Request, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
     routing::get,
@@ -14,17 +14,24 @@ use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
-use application::items::{ItemUsecase, ItemUsecaseImpl};
-use infrastructure::postgres::{item_repository::PostgresItemRepository, pools::connect_pg};
+use application::{
+    items::{ItemUsecase, ItemUsecaseImpl},
+    recipes::{RecipeUsecase, RecipeUsecaseImpl},
+};
+use infrastructure::{
+    postgres::pools::connect_pg,
+    repositorys::{item::PostgresItemRepository, recipe::PostgresRecipeRepository},
+};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
+use routes::recipes::{create_recipe, find_all_recipes, find_recipes_by_id};
 use shared::error::not_found_handler;
 
-pub async fn auth_middleware(
-    req: Request<Body>,
-    next: Next,
-) -> Result<Response, Response> {
+pub async fn auth_middleware(req: Request<Body>, next: Next) -> Result<Response, Response> {
     let secret = env::var("API_SECRET_KEY").unwrap_or_default();
-    let auth = req.headers().get("Authorization").and_then(|v| v.to_str().ok());
+    let auth = req
+        .headers()
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok());
 
     if let Some(auth_header) = auth {
         if auth_header == format!("Bearer {}", secret) {
@@ -59,8 +66,12 @@ async fn main() {
         .expect("Invalid port number in HTTP_PORT");
 
     let pool = connect_pg().await;
-    let repo = PostgresItemRepository::new(pool);
-    let usecase = Arc::new(ItemUsecaseImpl::new(repo)) as Arc<dyn ItemUsecase>;
+
+    let repo_item = PostgresItemRepository::new(pool.clone());
+    let usecase_item = Arc::new(ItemUsecaseImpl::new(repo_item)) as Arc<dyn ItemUsecase>;
+
+    let repo_recipe = PostgresRecipeRepository::new(pool.clone());
+    let usecase_recipe = Arc::new(RecipeUsecaseImpl::new(repo_recipe)) as Arc<dyn RecipeUsecase>;
 
     let app = Router::new()
         .route("/v1/items", get(find_all_items).post(create_item))
@@ -68,7 +79,10 @@ async fn main() {
             "/v1/items/{id}",
             get(find_item_by_id).patch(patch_item).delete(delete_item),
         )
-        .layer(Extension(usecase))
+        .route("/v1/recipes", get(find_all_recipes).post(create_recipe))
+        .route("/v1/recipes/{id}", get(find_recipes_by_id))
+        .layer(Extension(usecase_item))
+        .layer(Extension(usecase_recipe))
         .layer(middleware::from_fn(auth_middleware))
         .fallback(not_found_handler);
 
