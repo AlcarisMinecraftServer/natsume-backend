@@ -14,4 +14,5 @@ dotenvy = { workspace = true }
 sqlx = { version = "0.8.5", features = ["postgres", "runtime-tokio-rustls", "macros"] }
 application = { path = "../application" }
 domain = { path = "../domain" }
+infrastructure = { path = "../infrastructure" }
 shared = { path = "../shared" }

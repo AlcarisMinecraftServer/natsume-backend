@@ -1,9 +1,11 @@
-use crate::models::response::ApiErrorResponse;
 use axum::{
     Json,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use domain::response::ApiErrorResponse;
+
+pub type AppResult<T> = Result<T, anyhow::Error>;
 
 pub fn item_not_found(id: &str) -> Response {
     let body = ApiErrorResponse {

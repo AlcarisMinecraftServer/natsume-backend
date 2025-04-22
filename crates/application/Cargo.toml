@@ -4,5 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-domain = { version = "0.1.0", path = "../domain" }
-shared = { version = "0.1.0", path = "../shared" }
+async-trait = "0.1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+domain = { path = "../domain" }
+infrastructure = { path= "../infrastructure" }
+shared = { path = "../shared" }
