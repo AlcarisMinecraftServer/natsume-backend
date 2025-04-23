@@ -18,18 +18,23 @@ use application::{
     files::{FileUsecase, FileUsecaseImpl},
     items::{ItemUsecase, ItemUsecaseImpl},
     recipes::{RecipeUsecase, RecipeUsecaseImpl},
+    tickets::{TicketUsecase, TicketUsecaseImpl},
 };
 use infrastructure::{
     postgres::pools::connect_pg,
     repositorys::{
         file::PostgresFileRepository, item::PostgresItemRepository,
-        recipe::PostgresRecipeRepository,
+        recipe::PostgresRecipeRepository, ticket::PostgresTicketRepository,
     },
 };
-use routes::files::{delete_file, find_all_files, get_file_by_id, upload_file};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
 use routes::recipes::{
     create_recipe, delete_recipe, find_all_recipes, find_recipes_by_id, patch_recipe,
+};
+use routes::tickets::{create_ticket, find_ticket_by_id, list_tickets};
+use routes::{
+    files::{delete_file, find_all_files, get_file_by_id, upload_file},
+    tickets::{delete_ticket, patch_ticket},
 };
 use shared::error::not_found_handler;
 
@@ -74,14 +79,17 @@ async fn main() {
 
     let pool = connect_pg().await;
 
+    let file_repo = PostgresFileRepository::new(pool.clone());
+    let file_usecase = Arc::new(FileUsecaseImpl::new(file_repo)) as Arc<dyn FileUsecase>;
+
     let item_repo = PostgresItemRepository::new(pool.clone());
     let item_usecase = Arc::new(ItemUsecaseImpl::new(item_repo)) as Arc<dyn ItemUsecase>;
 
     let recipe_repo = PostgresRecipeRepository::new(pool.clone());
     let recipe_usecase = Arc::new(RecipeUsecaseImpl::new(recipe_repo)) as Arc<dyn RecipeUsecase>;
 
-    let file_repo = PostgresFileRepository::new(pool.clone());
-    let file_usecase = Arc::new(FileUsecaseImpl::new(file_repo)) as Arc<dyn FileUsecase>;
+    let ticket_repo = PostgresTicketRepository::new(pool.clone());
+    let ticket_usecase = Arc::new(TicketUsecaseImpl::new(ticket_repo)) as Arc<dyn TicketUsecase>;
 
     let app = Router::new()
         .route("/v1/items", get(find_all_items).post(create_item))
@@ -101,6 +109,14 @@ async fn main() {
         .route("/v1/files", get(find_all_files).post(upload_file))
         .route("/v1/files/{id}", get(get_file_by_id).delete(delete_file))
         .layer(Extension(file_usecase))
+        .route("/v1/tickets", get(list_tickets).post(create_ticket))
+        .route(
+            "/v1/tickets/{id}",
+            get(find_ticket_by_id)
+                .patch(patch_ticket)
+                .delete(delete_ticket),
+        )
+        .layer(Extension(ticket_usecase))
         .layer(middleware::from_fn(auth_middleware))
         .fallback(not_found_handler);
 
