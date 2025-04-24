@@ -1963,6 +1963,7 @@ dependencies = [
  "anyhow",
  "axum",
  "domain",
+ "uuid",
 ]
 
 [[package]]
