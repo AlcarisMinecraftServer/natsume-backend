@@ -15,18 +15,15 @@ use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
-    files::{FileUsecase, FileUsecaseImpl},
-    items::{ItemUsecase, ItemUsecaseImpl},
-    recipes::{RecipeUsecase, RecipeUsecaseImpl},
-    tickets::{TicketUsecase, TicketUsecaseImpl},
+    files::{FileUsecase, FileUsecaseImpl}, items::{ItemUsecase, ItemUsecaseImpl}, recipes::{RecipeUsecase, RecipeUsecaseImpl}, status::{StatusUsecase, StatusUsecaseImpl}, tickets::{TicketUsecase, TicketUsecaseImpl}
 };
 use infrastructure::{
     postgres::pools::connect_pg,
     repositorys::{
-        file::PostgresFileRepository, item::PostgresItemRepository,
-        recipe::PostgresRecipeRepository, ticket::PostgresTicketRepository,
-    },
+        file::PostgresFileRepository, item::PostgresItemRepository, recipe::PostgresRecipeRepository, status::PostgresStatusRepository, ticket::PostgresTicketRepository
+    }, status_watcher::start_status_watcher,
 };
+use routes::status::{get_status, list_status};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
 use routes::recipes::{
     create_recipe, delete_recipe, find_all_recipes, find_recipes_by_id, patch_recipe,
@@ -88,8 +85,13 @@ async fn main() {
     let recipe_repo = PostgresRecipeRepository::new(pool.clone());
     let recipe_usecase = Arc::new(RecipeUsecaseImpl::new(recipe_repo)) as Arc<dyn RecipeUsecase>;
 
-    let ticket_repo = PostgresTicketRepository::new(pool.clone());
+    let status_repo = PostgresStatusRepository::new(pool.clone());
+    let status_usecase = Arc::new(StatusUsecaseImpl::new(status_repo)) as Arc<dyn StatusUsecase>;
+
+    let ticket_repo: PostgresTicketRepository = PostgresTicketRepository::new(pool.clone());
     let ticket_usecase = Arc::new(TicketUsecaseImpl::new(ticket_repo)) as Arc<dyn TicketUsecase>;
+
+    start_status_watcher(pool.clone()).await.unwrap();
 
     let app = Router::new()
         .route("/v1/items", get(find_all_items).post(create_item))
@@ -109,6 +111,9 @@ async fn main() {
         .route("/v1/files", get(find_all_files).post(upload_file))
         .route("/v1/files/{id}", get(get_file_by_id).delete(delete_file))
         .layer(Extension(file_usecase))
+        .route("/v1/status", get(list_status))
+        .route("/v1/status/{server_id}", get(get_status))
+        .layer(Extension(status_usecase))
         .route("/v1/tickets", get(list_tickets).post(create_ticket))
         .route(
             "/v1/tickets/{id}",

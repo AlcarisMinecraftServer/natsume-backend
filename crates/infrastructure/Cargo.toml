@@ -6,8 +6,13 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.98"
 async-trait = "0.1"
+tracing = { workspace = true }
+tokio = { workspace = true }
+mc-query = "2.0.0"
+serde = { workspace = true }
 serde_json = { workspace = true }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 domain = { version = "0.1.0", path = "../domain" }
 shared = { version = "0.1.0", path = "../shared" }
 sqlx = { version = "0.8.5", features = ["postgres", "runtime-tokio-rustls", "macros", "chrono"] }
+toml = "0.8.21"

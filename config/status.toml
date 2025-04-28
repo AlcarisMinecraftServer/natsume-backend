@@ -1,0 +1,19 @@
+[[servers]]
+id = "server1"
+address = "play.srv1.alcaris.net"
+port = 25565
+
+[[servers]]
+id = "server2"
+address = "play.srv2.alcaris.net"
+port = 25565
+
+[[servers]]
+id = "server3"
+address = "play.srv3.alcaris.net"
+port = 25565
+
+[[servers]]
+id = "server4"
+address = "play.srv4.alcaris.net"
+port = 25565
