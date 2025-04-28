@@ -1,11 +1,11 @@
 use crate::repositorys::status::StatusRepository;
+use chrono::Utc;
 use domain::status::{Players, StatusRecord};
 use serde::Deserialize;
 use shared::error::AppResult;
 use sqlx::PgPool;
 use std::{fs, time::Duration};
 use tokio::time::sleep;
-use chrono::Utc;
 
 #[derive(Debug, Deserialize)]
 pub struct ServerEntry {
@@ -40,7 +40,7 @@ pub async fn start_status_watcher(pool: PgPool) -> AppResult<()> {
                             max: max_players as i32,
                         }),
                         timestamp,
-                    },                    
+                    },
                     Err(_) => StatusRecord {
                         online: false,
                         latency: None,
@@ -65,9 +65,5 @@ async fn query_minecraft_status(address: &str, port: u16) -> AppResult<(u32, u32
 
     let data = status(address, port).await?;
 
-    Ok((
-        0,
-        data.players.online as u32,
-        data.players.max as u32,
-    ))
+    Ok((0, data.players.online as u32, data.players.max as u32))
 }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use domain::status::{StatusRecord, Players};
+use domain::status::{Players, StatusRecord};
 use shared::error::AppResult;
 use sqlx::{PgPool, Row};
 
@@ -50,20 +50,23 @@ impl StatusRepository for PostgresStatusRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(|row| StatusRecord {
-            online: row.get("online"),
-            latency: row.get("latency"),
-            players: row.try_get("players_online").ok().map(|online| Players {
-                online,
-                max: row.get("players_max"),
-            }),
-            timestamp: row.get("timestamp"),
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| StatusRecord {
+                online: row.get("online"),
+                latency: row.get("latency"),
+                players: row.try_get("players_online").ok().map(|online| Players {
+                    online,
+                    max: row.get("players_max"),
+                }),
+                timestamp: row.get("timestamp"),
+            })
+            .collect())
     }
 
     async fn insert(&self, id: &str, record: &StatusRecord) -> AppResult<()> {
         let (players_online, players_max) = match &record.players {
-            Some(p) => (Some(p.online as i32), Some(p.max as i32)),
+            Some(p) => (Some(p.online), Some(p.max)),
             None => (None, None),
         };
 
@@ -93,19 +96,22 @@ impl StatusRepository for PostgresStatusRepository {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(|row| {
-            (
-                row.get("server_id"),
-                StatusRecord {
-                    online: row.get("online"),
-                    latency: row.get("latency"),
-                    players: row.try_get("players_online").ok().map(|online| Players {
-                        online,
-                        max: row.get("players_max"),
-                    }),
-                    timestamp: row.get("timestamp"),
-                }
-            )
-        }).collect())
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                (
+                    row.get("server_id"),
+                    StatusRecord {
+                        online: row.get("online"),
+                        latency: row.get("latency"),
+                        players: row.try_get("players_online").ok().map(|online| Players {
+                            online,
+                            max: row.get("players_max"),
+                        }),
+                        timestamp: row.get("timestamp"),
+                    },
+                )
+            })
+            .collect())
     }
 }

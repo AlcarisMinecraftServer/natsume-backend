@@ -15,19 +15,26 @@ use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
-    files::{FileUsecase, FileUsecaseImpl}, items::{ItemUsecase, ItemUsecaseImpl}, recipes::{RecipeUsecase, RecipeUsecaseImpl}, status::{StatusUsecase, StatusUsecaseImpl}, tickets::{TicketUsecase, TicketUsecaseImpl}
+    files::{FileUsecase, FileUsecaseImpl},
+    items::{ItemUsecase, ItemUsecaseImpl},
+    recipes::{RecipeUsecase, RecipeUsecaseImpl},
+    status::{StatusUsecase, StatusUsecaseImpl},
+    tickets::{TicketUsecase, TicketUsecaseImpl},
 };
 use infrastructure::{
     postgres::pools::connect_pg,
     repositorys::{
-        file::PostgresFileRepository, item::PostgresItemRepository, recipe::PostgresRecipeRepository, status::PostgresStatusRepository, ticket::PostgresTicketRepository
-    }, status_watcher::start_status_watcher,
+        file::PostgresFileRepository, item::PostgresItemRepository,
+        recipe::PostgresRecipeRepository, status::PostgresStatusRepository,
+        ticket::PostgresTicketRepository,
+    },
+    status_watcher::start_status_watcher,
 };
-use routes::status::{get_status, list_status};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
 use routes::recipes::{
     create_recipe, delete_recipe, find_all_recipes, find_recipes_by_id, patch_recipe,
 };
+use routes::status::{get_status, list_status};
 use routes::tickets::{create_ticket, find_ticket_by_id, list_tickets};
 use routes::{
     files::{delete_file, find_all_files, get_file_by_id, upload_file},

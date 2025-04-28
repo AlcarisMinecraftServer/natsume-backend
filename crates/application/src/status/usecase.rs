@@ -23,12 +23,12 @@ pub trait StatusUsecase: Send + Sync {
 impl<R: StatusRepository + Send + Sync + 'static> StatusUsecase for StatusUsecaseImpl<R> {
     async fn find_all(&self) -> AppResult<Vec<StatusSummary>> {
         let records = self.repo.list_latest().await?;
-    
+
         let mut summaries = Vec::new();
-    
+
         for (id, record) in records {
             let history = self.repo.get_history(&id).await?;
-    
+
             summaries.push(StatusSummary {
                 id,
                 online: record.online,
@@ -38,9 +38,9 @@ impl<R: StatusRepository + Send + Sync + 'static> StatusUsecase for StatusUsecas
                 history,
             });
         }
-    
+
         Ok(summaries)
-    }    
+    }
 
     async fn find_by_id(&self, id: &str) -> AppResult<StatusResponse> {
         let latest = self.repo.get_latest(id).await?;
@@ -55,7 +55,7 @@ impl<R: StatusRepository + Send + Sync + 'static> StatusUsecase for StatusUsecas
                 timestamp: record.timestamp,
                 history,
             }),
-            None => Err(anyhow::anyhow!("Server not found").into()),
+            None => Err(anyhow::anyhow!("Server not found")),
         }
     }
 }

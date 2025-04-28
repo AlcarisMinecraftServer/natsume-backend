@@ -1,12 +1,12 @@
+use application::status::StatusUsecase;
+use axum::http::StatusCode;
 use axum::{
+    Json,
     extract::{Extension, Path},
     response::IntoResponse,
-    Json,
 };
-use application::status::StatusUsecase;
 use domain::response::ApiResponse;
 use std::sync::Arc;
-use axum::http::StatusCode;
 
 pub async fn get_status(
     Extension(usecase): Extension<Arc<dyn StatusUsecase>>,

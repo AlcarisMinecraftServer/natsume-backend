@@ -35,12 +35,24 @@ impl IdGenerator {
         };
 
         let uuid_bytes = uuid.as_u128().to_le_bytes();
-        let uuid_fragment = (u64::from_le_bytes([
-            uuid_bytes[0], uuid_bytes[1], uuid_bytes[2], uuid_bytes[3],
-            uuid_bytes[4], uuid_bytes[5], uuid_bytes[6], uuid_bytes[7],
-        ]) & 0x1FF) as u64;
+        let uuid_fragment = u64::from_le_bytes([
+            uuid_bytes[0],
+            uuid_bytes[1],
+            uuid_bytes[2],
+            uuid_bytes[3],
+            uuid_bytes[4],
+            uuid_bytes[5],
+            uuid_bytes[6],
+            uuid_bytes[7],
+        ]) & 0x1FF;
 
         (now_ms << (9 + 5 + 6)) | (uuid_fragment << (5 + 6)) | ((entity_type as u64) << 6) | seq
+    }
+}
+
+impl Default for IdGenerator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
