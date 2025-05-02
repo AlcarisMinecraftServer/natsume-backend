@@ -99,7 +99,7 @@ impl ItemRepository for PostgresItemRepository {
             INSERT INTO items (
                 id, version, name, category,
                 lore, rarity, max_stack, custom_model_data,
-                price, data
+                price, tags, data
             ) VALUES (
                 $1, $2, $3, $4,
                 to_jsonb($5), $6, $7, $8,
@@ -116,6 +116,7 @@ impl ItemRepository for PostgresItemRepository {
         .bind(item.max_stack)
         .bind(item.custom_model_data)
         .bind(serde_json::to_value(&item.price)?)
+        .bind(serde_json::to_value(&item.tags)?)
         .bind(item.data)
         .execute(&self.pool)
         .await?;
