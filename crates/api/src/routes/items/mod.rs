@@ -44,7 +44,11 @@ pub async fn find_item_by_id(
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     match usecase.find_by_id(&id).await {
-        Ok(item) => Json(item).into_response(),
+        Ok(item) => Json(ApiResponse {
+            status: 200,
+            data: item,
+        })
+        .into_response(),
         Err(_) => item_not_found(&id),
     }
 }
@@ -58,7 +62,7 @@ pub async fn create_item(
             StatusCode::CREATED,
             Json(ApiResponse {
                 status: 201,
-                data: (),
+                data: "Item created",
             }),
         )
             .into_response(),

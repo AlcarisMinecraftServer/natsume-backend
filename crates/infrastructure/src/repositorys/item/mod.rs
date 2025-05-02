@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use domain::items::{Item, ItemCategory};
-use serde_json::Value;
+use serde_json::{from_value, to_value, Value};
 use shared::error::AppResult;
 use sqlx::{PgPool, Row};
 
@@ -55,6 +55,7 @@ impl ItemRepository for PostgresItemRepository {
                 max_stack: row.get("max_stack"),
                 custom_model_data: row.get("custom_model_data"),
                 price: serde_json::from_value(row.get("price"))?,
+                tags: serde_json::from_value(row.get::<Value, _>("tags"))?,
                 data: row.get("data"),
             };
 
@@ -87,6 +88,7 @@ impl ItemRepository for PostgresItemRepository {
             max_stack: row.get("max_stack"),
             custom_model_data: row.get("custom_model_data"),
             price: serde_json::from_value(row.get("price"))?,
+            tags: serde_json::from_value(row.get::<Value, _>("tags"))?,
             data: row.get("data"),
         })
     }
@@ -122,11 +124,38 @@ impl ItemRepository for PostgresItemRepository {
     }
 
     async fn patch(&self, id: &str, patch: Value) -> AppResult<()> {
-        sqlx::query("UPDATE items SET data = data || $1 WHERE id = $2")
-            .bind(patch)
-            .bind(id)
-            .execute(&self.pool)
-            .await?;
+        let item: Item = from_value(patch)?;
+    
+        sqlx::query(
+            r#"
+            UPDATE items SET
+                version = $1,
+                name = $2,
+                category = $3,
+                lore = to_jsonb($4),
+                rarity = $5,
+                max_stack = $6,
+                custom_model_data = $7,
+                price = to_jsonb($8),
+                tags = to_jsonb($9),
+                data = to_jsonb($10)
+            WHERE id = $11
+            "#,
+        )
+        .bind(item.version)
+        .bind(&item.name)
+        .bind(item.category.to_string())
+        .bind(to_value(&item.lore)?)
+        .bind(item.rarity)
+        .bind(item.max_stack)
+        .bind(item.custom_model_data)
+        .bind(to_value(&item.price)?)
+        .bind(to_value(&item.tags)?)
+        .bind(item.data)
+        .bind(id)
+        .execute(&self.pool)
+        .await?;
+    
         Ok(())
     }
 

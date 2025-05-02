@@ -12,6 +12,7 @@ pub struct Item {
     pub max_stack: i16,
     pub custom_model_data: i32,
     pub price: Price,
+    pub tags: Vec<Tag>,
     pub data: serde_json::Value,
 }
 
@@ -20,6 +21,12 @@ pub struct Price {
     pub buy: i32,
     pub sell: i32,
     pub can_sell: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Tag {
+    pub label: String,
+    pub color: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

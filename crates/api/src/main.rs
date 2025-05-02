@@ -3,15 +3,11 @@ mod routes;
 use std::{env, net::SocketAddr, sync::Arc};
 
 use axum::{
-    Extension, Json, Router,
-    body::Body,
-    http::{Request, StatusCode},
-    middleware::{self, Next},
-    response::{IntoResponse, Response},
-    routing::get,
+    body::Body, http::{header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE}, Method, Request, StatusCode}, middleware::{self, Next}, response::{IntoResponse, Response}, routing::get, Extension, Json, Router
 };
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
+use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
@@ -130,6 +126,19 @@ async fn main() {
         )
         .layer(Extension(ticket_usecase))
         .layer(middleware::from_fn(auth_middleware))
+        .layer(
+            CorsLayer::new()
+                .allow_methods([
+                    Method::GET,
+                    Method::POST,
+                    Method::DELETE,
+                    Method::PATCH,
+                    Method::PUT,
+                ])
+                .allow_origin(Any)
+                .allow_headers([CONTENT_TYPE, AUTHORIZATION])
+                .expose_headers([LOCATION, SET_COOKIE]),
+        )
         .fallback(not_found_handler);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
