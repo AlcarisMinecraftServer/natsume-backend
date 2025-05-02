@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use domain::items::{Item, ItemCategory};
-use serde_json::{from_value, to_value, Value};
+use serde_json::{Value, from_value, to_value};
 use shared::error::AppResult;
 use sqlx::{PgPool, Row};
 
@@ -126,7 +126,7 @@ impl ItemRepository for PostgresItemRepository {
 
     async fn patch(&self, id: &str, patch: Value) -> AppResult<()> {
         let item: Item = from_value(patch)?;
-    
+
         sqlx::query(
             r#"
             UPDATE items SET
@@ -156,7 +156,7 @@ impl ItemRepository for PostgresItemRepository {
         .bind(id)
         .execute(&self.pool)
         .await?;
-    
+
         Ok(())
     }
 

@@ -3,7 +3,15 @@ mod routes;
 use std::{env, net::SocketAddr, sync::Arc};
 
 use axum::{
-    body::Body, http::{header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE}, Method, Request, StatusCode}, middleware::{self, Next}, response::{IntoResponse, Response}, routing::get, Extension, Json, Router
+    Extension, Json, Router,
+    body::Body,
+    http::{
+        Method, Request, StatusCode,
+        header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE},
+    },
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
+    routing::get,
 };
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
