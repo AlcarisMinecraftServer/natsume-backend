@@ -1,15 +1,13 @@
-FROM rust:1.86.0-slim AS builder
-
+FROM rust:1-slim AS builder
 WORKDIR /app
 
-COPY Cargo.toml Cargo.lock ./
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential pkg-config libssl-dev clang \
     && rm -rf /var/lib/apt/lists/*
-RUN mkdir src \
-    && echo 'fn main() {}' > src/main.rs \
-    && cargo build --release --locked \
-    && rm -rf src
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+RUN cargo fetch --locked
 
 COPY . .
 RUN cargo build --release --package api --locked
