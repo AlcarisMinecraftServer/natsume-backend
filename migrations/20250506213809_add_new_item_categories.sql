@@ -4,4 +4,4 @@ DROP CONSTRAINT IF EXISTS items_category_check;
 
 ALTER TABLE items
 ADD CONSTRAINT items_category_check
-CHECK (category IN ('food', 'tool', 'armor', 'weapon', 'materials'));
+CHECK (category IN ('food', 'tool', 'armor', 'weapon', 'material'));
