@@ -1,7 +1,7 @@
-use sqlx::{PgPool, postgres::PgPoolOptions, migrate::Migrator};
+use sqlx::{PgPool, migrate::Migrator, postgres::PgPoolOptions};
 use std::env;
 
-static MIGRATOR: Migrator = sqlx::migrate!("../../migrations");    
+static MIGRATOR: Migrator = sqlx::migrate!("../../migrations");
 
 fn database_url() -> String {
     env::var("DATABASE_URL").expect("DATABASE_URL is not set")
