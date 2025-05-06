@@ -103,7 +103,7 @@ impl ItemRepository for PostgresItemRepository {
             ) VALUES (
                 $1, $2, $3, $4,
                 to_jsonb($5), $6, $7, $8,
-                to_jsonb($9), to_jsonb($10)
+                to_jsonb($9), to_jsonb($10), to_jsonb($11)
             )
             "#,
         )
