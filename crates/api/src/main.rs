@@ -85,7 +85,7 @@ async fn main() {
         .parse::<u16>()
         .expect("Invalid port number in HTTP_PORT");
 
-    let pool = connect_pg().await;
+    let pool = connect_pg().await.expect("Failed to init DB");
 
     let file_repo = PostgresFileRepository::new(pool.clone());
     let file_usecase = Arc::new(FileUsecaseImpl::new(file_repo)) as Arc<dyn FileUsecase>;
