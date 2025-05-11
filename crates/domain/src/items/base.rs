@@ -45,6 +45,8 @@ impl std::fmt::Display for ItemCategory {
                 ItemCategory::Food => "food",
                 ItemCategory::Tool => "tool",
                 ItemCategory::Armor => "armor",
+                ItemCategory::Weapon => "weapon",
+                ItemCategory::Material => "material",
             }
         )
     }
@@ -56,4 +58,6 @@ pub enum ItemCategory {
     Food,
     Tool,
     Armor,
+    Weapon,
+    Material,
 }

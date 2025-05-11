@@ -15,6 +15,7 @@ use axum::{
 };
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
+use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -102,6 +103,9 @@ async fn main() {
     let ticket_repo: PostgresTicketRepository = PostgresTicketRepository::new(pool.clone());
     let ticket_usecase = Arc::new(TicketUsecaseImpl::new(ticket_repo)) as Arc<dyn TicketUsecase>;
 
+    let (tx, _rx) = broadcast::channel::<String>(100);
+    let tx = std::sync::Arc::new(tx);
+
     start_status_watcher(pool.clone()).await.unwrap();
 
     let app = Router::new()
@@ -133,6 +137,8 @@ async fn main() {
                 .delete(delete_ticket),
         )
         .layer(Extension(ticket_usecase))
+        .merge(routes::ws::ws_router(tx.clone()))
+        .layer(Extension(tx.clone()))
         .layer(middleware::from_fn(auth_middleware))
         .layer(
             CorsLayer::new()

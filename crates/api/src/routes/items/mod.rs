@@ -7,7 +7,9 @@ use axum::{
     response::IntoResponse,
 };
 use serde_json::Value;
+use tokio::sync::broadcast::Sender;
 
+use crate::routes::ws::make_message;
 use application::items::ItemUsecase;
 use domain::{items::Item, response::ApiResponse};
 use shared::error::item_not_found;
@@ -55,17 +57,24 @@ pub async fn find_item_by_id(
 
 pub async fn create_item(
     Extension(usecase): Extension<Arc<dyn ItemUsecase>>,
+    Extension(tx): Extension<Arc<Sender<String>>>,
     Json(item): Json<Item>,
 ) -> impl IntoResponse {
     match usecase.create(item).await {
-        Ok(_) => (
-            StatusCode::CREATED,
-            Json(ApiResponse {
-                status: 201,
-                data: "Item created",
-            }),
-        )
-            .into_response(),
+        Ok(_) => {
+            // WebSocket通知
+            let msg = make_message("create", "item", "admin", "web");
+            let _ = tx.send(msg);
+
+            (
+                StatusCode::CREATED,
+                Json(ApiResponse {
+                    status: 201,
+                    data: "Item created",
+                }),
+            )
+                .into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
@@ -80,15 +89,21 @@ pub async fn create_item(
 
 pub async fn patch_item(
     Extension(usecase): Extension<Arc<dyn ItemUsecase>>,
+    Extension(tx): Extension<Arc<Sender<String>>>,
     Path(id): Path<String>,
     Json(patch): Json<Value>,
 ) -> impl IntoResponse {
     match usecase.patch(&id, patch).await {
-        Ok(_) => Json(serde_json::json!({
-            "status": 200,
-            "message": "Item updated"
-        }))
-        .into_response(),
+        Ok(_) => {
+            let msg = make_message("update", "item", "admin", "web");
+            let _ = tx.send(msg);
+
+            Json(serde_json::json!({
+                "status": 200,
+                "message": "Item updated"
+            }))
+            .into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
@@ -103,14 +118,20 @@ pub async fn patch_item(
 
 pub async fn delete_item(
     Extension(usecase): Extension<Arc<dyn ItemUsecase>>,
+    Extension(tx): Extension<Arc<Sender<String>>>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     match usecase.delete(&id).await {
-        Ok(_) => Json(serde_json::json!({
-            "status": 200,
-            "message": "Item deleted"
-        }))
-        .into_response(),
+        Ok(_) => {
+            let msg = make_message("delete", "item", "admin", "web");
+            let _ = tx.send(msg);
+
+            Json(serde_json::json!({
+                "status": 200,
+                "message": "Item deleted"
+            }))
+            .into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
