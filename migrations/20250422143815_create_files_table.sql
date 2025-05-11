@@ -1,5 +1,5 @@
 -- Add migration script here
-CREATE TABLE files (
+CREATE TABLE IF NOT EXISTS files (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     filename TEXT NOT NULL,
