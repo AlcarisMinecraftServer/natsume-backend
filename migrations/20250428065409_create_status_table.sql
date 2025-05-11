@@ -1,5 +1,5 @@
 -- Add migration script here
-CREATE TABLE status (
+CREATE TABLE IF NOT EXISTS status (
     id SERIAL PRIMARY KEY,
     server_id TEXT NOT NULL,
     online BOOLEAN NOT NULL,

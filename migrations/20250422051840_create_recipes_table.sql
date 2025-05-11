@@ -1,4 +1,4 @@
-CREATE TABLE recipes (
+CREATE TABLE IF NOT EXISTS recipes (
     id TEXT PRIMARY KEY,
     category TEXT NOT NULL,
     inputs JSONB NOT NULL,

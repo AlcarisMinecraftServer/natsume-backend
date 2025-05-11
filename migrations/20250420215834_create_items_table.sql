@@ -1,5 +1,5 @@
 -- Add migration script here
-CREATE TABLE items (
+CREATE TABLE IF NOT EXISTS items (
     id TEXT PRIMARY KEY,
     version BIGINT NOT NULL,
     name TEXT NOT NULL,
