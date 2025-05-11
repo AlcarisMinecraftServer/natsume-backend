@@ -1,13 +1,13 @@
 use axum::{
+    Router,
     extract::ws::{Message, WebSocket, WebSocketUpgrade},
     response::IntoResponse,
     routing::get,
-    Router,
 };
 use futures::{SinkExt, StreamExt};
 use serde_json::json;
-use tokio::sync::broadcast::Sender;
 use std::sync::Arc;
+use tokio::sync::broadcast::Sender;
 
 pub fn ws_router(tx: Arc<Sender<String>>) -> Router {
     Router::new().route("/v1/ws", get(move |ws| handler(ws, tx.clone())))

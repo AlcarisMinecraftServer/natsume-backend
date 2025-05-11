@@ -14,8 +14,8 @@ use axum::{
     routing::get,
 };
 use dotenvy::dotenv;
-use tokio::sync::broadcast;
 use tokio::net::TcpListener;
+use tokio::sync::broadcast;
 use tower_http::cors::{Any, CorsLayer};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
