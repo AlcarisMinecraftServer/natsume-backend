@@ -45,8 +45,10 @@ impl ItemRepository for PostgresItemRepository {
                 version: row.get("version"),
                 name: row.get("name"),
                 category: match category_str.to_lowercase().as_str() {
-                    "food" => ItemCategory::Food,
+                    "weapon" => ItemCategory::Weapon,
                     "tool" => ItemCategory::Tool,
+                    "material" => ItemCategory::Material,
+                    "food" => ItemCategory::Food,
                     "armor" => ItemCategory::Armor,
                     _ => continue,
                 },
@@ -78,8 +80,10 @@ impl ItemRepository for PostgresItemRepository {
             version: row.get("version"),
             name: row.get("name"),
             category: match category_str.to_lowercase().as_str() {
-                "food" => ItemCategory::Food,
+                "weapon" => ItemCategory::Weapon,
                 "tool" => ItemCategory::Tool,
+                "material" => ItemCategory::Material,
+                "food" => ItemCategory::Food,
                 "armor" => ItemCategory::Armor,
                 _ => return Err(anyhow::anyhow!("Invalid category")),
             },
