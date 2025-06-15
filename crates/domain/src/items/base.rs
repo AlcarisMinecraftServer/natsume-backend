@@ -1,4 +1,4 @@
-use super::{ArmorData, FoodData, ToolData};
+use super::{ArmorData, FoodData, ToolData, WeaponData};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -31,6 +31,7 @@ pub struct Tag {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub enum ItemData {
+    Weapon(WeaponData),
     Food(FoodData),
     Tool(ToolData),
     Armor(ArmorData),
