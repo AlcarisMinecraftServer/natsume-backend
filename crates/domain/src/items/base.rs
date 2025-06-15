@@ -1,4 +1,4 @@
-use super::{WeaponData, ArmorData, FoodData, ToolData};
+use super::{ArmorData, FoodData, ToolData, WeaponData};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
