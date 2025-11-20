@@ -1,4 +1,4 @@
-use sqlx::{PgPool, migrate::Migrator, postgres::PgPoolOptions};
+use sqlx::{Connection, PgConnection, PgPool, migrate::Migrator, postgres::PgPoolOptions};
 use std::env;
 
 static MIGRATOR: Migrator = sqlx::migrate!("../../migrations");
@@ -8,13 +8,14 @@ fn database_url() -> String {
 }
 
 pub async fn connect_pg() -> anyhow::Result<PgPool> {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(&database_url())
-        .await
-        .expect("Failed to connect to PostgreSQL");
+    let mut conn = PgConnection::connect(&database_url()).await?;
+    MIGRATOR.run(&mut conn).await?;
+    drop(conn);
 
-    MIGRATOR.run(&pool).await?;
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect(&database_url())
+        .await?;
 
     Ok(pool)
 }
