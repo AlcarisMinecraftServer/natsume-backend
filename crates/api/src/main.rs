@@ -6,8 +6,7 @@ use axum::{
     Extension, Json, Router,
     body::Body,
     http::{
-        Method, Request, StatusCode,
-        header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE},
+        HeaderValue, Method, Request, StatusCode, header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE}
     },
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -16,7 +15,7 @@ use axum::{
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{CorsLayer};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
