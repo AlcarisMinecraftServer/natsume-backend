@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use domain::items::{Item, ItemCategory};
-use serde_json::{Value};
+use serde_json::Value;
 use shared::error::AppResult;
 use sqlx::{PgPool, Row};
 
@@ -26,13 +26,15 @@ impl PostgresItemRepository {
 #[async_trait]
 impl ItemRepository for PostgresItemRepository {
     async fn fetch_all(&self, category: Option<String>) -> AppResult<Vec<Item>> {
+        let category_filter = category.map(|c| c.to_lowercase());
+
         let query = r#"
             SELECT * FROM items 
             WHERE $1::text IS NULL OR category = $1
         "#;
 
-        let rows = sqlx::query(query)
-            .bind(&category)
+        let rows: Vec<sqlx::postgres::PgRow> = sqlx::query(query)
+            .bind(category_filter)
             .fetch_all(&self.pool)
             .await?;
 
@@ -40,19 +42,20 @@ impl ItemRepository for PostgresItemRepository {
 
         for row in rows {
             let category_str: String = row.get("category");
+            let item_category = match category_str.as_str() {
+                "weapon" => ItemCategory::Weapon,
+                "tool" => ItemCategory::Tool,
+                "material" => ItemCategory::Material,
+                "food" => ItemCategory::Food,
+                "armor" => ItemCategory::Armor,
+                _ => continue,
+            };
 
             let item = Item {
                 id: row.get("id"),
                 version: row.get("version"),
                 name: row.get("name"),
-                category: match category_str.to_lowercase().as_str() {
-                    "weapon" => ItemCategory::Weapon,
-                    "tool" => ItemCategory::Tool,
-                    "material" => ItemCategory::Material,
-                    "food" => ItemCategory::Food,
-                    "armor" => ItemCategory::Armor,
-                    _ => continue,
-                },
+                category: item_category,
                 lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
                 rarity: row.get("rarity"),
                 max_stack: row.get("max_stack"),
