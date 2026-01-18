@@ -48,7 +48,8 @@ use routes::{
 use shared::error::not_found_handler;
 
 pub async fn auth_middleware(req: Request<Body>, next: Next) -> Result<Response, Response> {
-    let secret = env::var("API_SECRET_KEY").unwrap_or_default();
+    let secret = env::var("API_SECRET_KEY").expect("API_SECRET_KEY must be set in .env");
+
     let auth = req
         .headers()
         .get("Authorization")
@@ -149,7 +150,13 @@ async fn main() {
                     Method::PATCH,
                     Method::PUT,
                 ])
-                .allow_origin(Any)
+                .allow_origin([
+                    "http://localhost:3000".parse::<HeaderValue>().unwrap(),
+                    "http://localhost:9000".parse::<HeaderValue>().unwrap(),
+                    "https://natsume-backend.onp.admin.alcaris.net"
+                        .parse::<HeaderValue>()
+                        .unwrap(),
+                ])
                 .allow_headers([CONTENT_TYPE, AUTHORIZATION])
                 .expose_headers([LOCATION, SET_COOKIE]),
         )
