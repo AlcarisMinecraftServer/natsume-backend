@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use domain::items::{Item, ItemCategory};
-use serde_json::{Value, from_value, to_value};
+use serde_json::{Value};
 use shared::error::AppResult;
 use sqlx::{PgPool, Row};
 
@@ -26,7 +26,13 @@ impl PostgresItemRepository {
 #[async_trait]
 impl ItemRepository for PostgresItemRepository {
     async fn fetch_all(&self, category: Option<String>) -> AppResult<Vec<Item>> {
-        let rows = sqlx::query("SELECT * FROM items")
+        let query = r#"
+            SELECT * FROM items 
+            WHERE $1::text IS NULL OR category = $1
+        "#;
+
+        let rows = sqlx::query(query)
+            .bind(&category)
             .fetch_all(&self.pool)
             .await?;
 
@@ -34,11 +40,6 @@ impl ItemRepository for PostgresItemRepository {
 
         for row in rows {
             let category_str: String = row.get("category");
-            if let Some(ref filter) = category {
-                if category_str.to_lowercase() != filter.to_lowercase() {
-                    continue;
-                }
-            }
 
             let item = Item {
                 id: row.get("id"),
@@ -129,37 +130,59 @@ impl ItemRepository for PostgresItemRepository {
     }
 
     async fn patch(&self, id: &str, patch: Value) -> AppResult<()> {
-        let item: Item = from_value(patch)?;
+        let patch_obj = patch
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("Invalid JSON patch"))?;
 
-        sqlx::query(
-            r#"
-            UPDATE items SET
-                version = $1,
-                name = $2,
-                category = $3,
-                lore = to_jsonb($4),
-                rarity = $5,
-                max_stack = $6,
-                custom_model_data = $7,
-                price = to_jsonb($8),
-                tags = to_jsonb($9),
-                data = to_jsonb($10)
-            WHERE id = $11
-            "#,
-        )
-        .bind(item.version)
-        .bind(&item.name)
-        .bind(item.category.to_string())
-        .bind(to_value(&item.lore)?)
-        .bind(item.rarity)
-        .bind(item.max_stack)
-        .bind(item.custom_model_data)
-        .bind(to_value(&item.price)?)
-        .bind(to_value(&item.tags)?)
-        .bind(item.data)
-        .bind(id)
-        .execute(&self.pool)
-        .await?;
+        let mut query_builder = sqlx::QueryBuilder::new("UPDATE items SET ");
+        let mut separated = query_builder.separated(", ");
+
+        if let Some(val) = patch_obj.get("name") {
+            separated.push("name = ");
+            separated.push_bind_unseparated(val.as_str());
+        }
+        if let Some(val) = patch_obj.get("version") {
+            separated.push("version = ");
+            separated.push_bind_unseparated(val.as_i64());
+        }
+        if let Some(val) = patch_obj.get("category") {
+            separated.push("category = ");
+            separated.push_bind_unseparated(val.as_str());
+        }
+        if let Some(val) = patch_obj.get("lore") {
+            separated.push("lore = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("rarity") {
+            separated.push("rarity = ");
+            separated.push_bind_unseparated(val.as_i64());
+        }
+        if let Some(val) = patch_obj.get("max_stack") {
+            separated.push("max_stack = ");
+            separated.push_bind_unseparated(val.as_i64());
+        }
+        if let Some(val) = patch_obj.get("custom_model_data") {
+            separated.push("custom_model_data = ");
+            separated.push_bind_unseparated(val.as_i64());
+        }
+        if let Some(val) = patch_obj.get("price") {
+            separated.push("price = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("tags") {
+            separated.push("tags = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("data") {
+            separated.push("data = ");
+            separated.push_bind_unseparated(val);
+        }
+
+        query_builder.push(" WHERE id = ");
+        query_builder.push_bind(id);
+
+        let query = query_builder.build();
+        query.execute(&self.pool).await?;
 
         Ok(())
     }
