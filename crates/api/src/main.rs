@@ -6,7 +6,8 @@ use axum::{
     Extension, Json, Router,
     body::Body,
     http::{
-        HeaderValue, Method, Request, StatusCode, header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE}
+        HeaderValue, Method, Request, StatusCode,
+        header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE},
     },
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -15,7 +16,7 @@ use axum::{
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tower_http::cors::{CorsLayer};
+use tower_http::cors::CorsLayer;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
@@ -82,7 +83,7 @@ async fn main() {
         .init();
 
     let port = env::var("HTTP_PORT")
-        .unwrap_or_else(|_| "3000".to_string())
+        .unwrap_or_else(|_| "9000".to_string())
         .parse::<u16>()
         .expect("Invalid port number in HTTP_PORT");
 
@@ -148,16 +149,17 @@ async fn main() {
                     Method::DELETE,
                     Method::PATCH,
                     Method::PUT,
+                    Method::OPTIONS,
                 ])
                 .allow_origin([
-                    "http://localhost:3000".parse::<HeaderValue>().unwrap(),
-                    "http://localhost:9000".parse::<HeaderValue>().unwrap(),
-                    "https://natsume-backend.onp.admin.alcaris.net"
+                    "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+                    "https://natsume.admin.alcaris.net"
                         .parse::<HeaderValue>()
                         .unwrap(),
                 ])
                 .allow_headers([CONTENT_TYPE, AUTHORIZATION])
-                .expose_headers([LOCATION, SET_COOKIE]),
+                .expose_headers([LOCATION, SET_COOKIE])
+                .allow_credentials(true),
         )
         .fallback(not_found_handler);
 
