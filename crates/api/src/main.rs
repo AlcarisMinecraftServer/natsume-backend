@@ -11,7 +11,7 @@ use axum::{
     },
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
 };
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
@@ -35,6 +35,7 @@ use infrastructure::{
     },
     status_watcher::start_status_watcher,
 };
+use routes::auth::{OAuthStateStore, discord_exchange, discord_login};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
 use routes::recipes::{
     create_recipe, delete_recipe, find_all_recipes, find_recipes_by_id, patch_recipe,
@@ -89,6 +90,8 @@ async fn main() {
 
     let pool = connect_pg().await.expect("Failed to init DB");
 
+    let oauth_state_store = Arc::new(OAuthStateStore::default());
+
     let file_repo = PostgresFileRepository::new(pool.clone());
     let file_usecase = Arc::new(FileUsecaseImpl::new(file_repo)) as Arc<dyn FileUsecase>;
 
@@ -110,6 +113,8 @@ async fn main() {
     start_status_watcher(pool.clone()).await.unwrap();
 
     let app = Router::new()
+        .route("/v1/auth/discord/login", get(discord_login))
+        .route("/v1/auth/discord/exchange", post(discord_exchange))
         .route("/v1/items", get(find_all_items).post(create_item))
         .route(
             "/v1/items/{id}",
@@ -140,6 +145,8 @@ async fn main() {
         .layer(Extension(ticket_usecase))
         .merge(routes::ws::ws_router(tx.clone()))
         .layer(Extension(tx.clone()))
+        .layer(Extension(pool.clone()))
+        .layer(Extension(oauth_state_store))
         .layer(middleware::from_fn(auth_middleware))
         .layer(
             CorsLayer::new()
@@ -157,7 +164,14 @@ async fn main() {
                         .parse::<HeaderValue>()
                         .unwrap(),
                 ])
-                .allow_headers([CONTENT_TYPE, AUTHORIZATION])
+                .allow_headers([
+                    CONTENT_TYPE,
+                    AUTHORIZATION,
+                    "x-actor-discord-id".parse().unwrap(),
+                    "x-actor-discord-username".parse().unwrap(),
+                    "x-actor-discord-global-name".parse().unwrap(),
+                    "x-actor-discord-avatar".parse().unwrap(),
+                ])
                 .expose_headers([LOCATION, SET_COOKIE])
                 .allow_credentials(true),
         )
