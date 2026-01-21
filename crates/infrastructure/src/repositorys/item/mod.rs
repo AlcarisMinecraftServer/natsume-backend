@@ -51,6 +51,8 @@ impl ItemRepository for PostgresItemRepository {
                 _ => continue,
             };
 
+            let cmd_value: Value = row.get("custom_model_data");
+
             let item = Item {
                 id: row.get("id"),
                 version: row.get("version"),
@@ -59,7 +61,9 @@ impl ItemRepository for PostgresItemRepository {
                 lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
                 rarity: row.get("rarity"),
                 max_stack: row.get("max_stack"),
-                custom_model_data: row.get("custom_model_data"),
+                custom_model_data: serde_json::from_value(cmd_value)?,
+                item_model: row.get("item_model"),
+                tooltip_style: row.get("tooltip_style"),
                 price: serde_json::from_value(row.get("price"))?,
                 tags: serde_json::from_value(row.get::<Value, _>("tags"))?,
                 data: row.get("data"),
@@ -78,6 +82,7 @@ impl ItemRepository for PostgresItemRepository {
             .await?;
 
         let category_str: String = row.get("category");
+        let cmd_value: Value = row.get("custom_model_data");
 
         Ok(Item {
             id: row.get("id"),
@@ -94,7 +99,9 @@ impl ItemRepository for PostgresItemRepository {
             lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
             rarity: row.get("rarity"),
             max_stack: row.get("max_stack"),
-            custom_model_data: row.get("custom_model_data"),
+            custom_model_data: serde_json::from_value(cmd_value)?,
+            item_model: row.get("item_model"),
+            tooltip_style: row.get("tooltip_style"),
             price: serde_json::from_value(row.get("price"))?,
             tags: serde_json::from_value(row.get::<Value, _>("tags"))?,
             data: row.get("data"),
@@ -107,11 +114,12 @@ impl ItemRepository for PostgresItemRepository {
             INSERT INTO items (
                 id, version, name, category,
                 lore, rarity, max_stack, custom_model_data,
-                price, tags, data
+                price, tags, data, item_model, tooltip_style
             ) VALUES (
                 $1, $2, $3, $4,
-                to_jsonb($5), $6, $7, $8,
-                to_jsonb($9), to_jsonb($10), to_jsonb($11)
+                to_jsonb($5), $6, $7, to_jsonb($8),
+                to_jsonb($9), to_jsonb($10), to_jsonb($11),
+                $12, $13
             )
             "#,
         )
@@ -122,10 +130,12 @@ impl ItemRepository for PostgresItemRepository {
         .bind(serde_json::to_value(&item.lore)?)
         .bind(item.rarity)
         .bind(item.max_stack)
-        .bind(item.custom_model_data)
+        .bind(serde_json::to_value(&item.custom_model_data)?)
         .bind(serde_json::to_value(&item.price)?)
         .bind(serde_json::to_value(&item.tags)?)
         .bind(item.data)
+        .bind(&item.item_model)
+        .bind(&item.tooltip_style)
         .execute(&self.pool)
         .await?;
 
@@ -166,7 +176,7 @@ impl ItemRepository for PostgresItemRepository {
         }
         if let Some(val) = patch_obj.get("custom_model_data") {
             separated.push("custom_model_data = ");
-            separated.push_bind_unseparated(val.as_i64());
+            separated.push_bind_unseparated(val);
         }
         if let Some(val) = patch_obj.get("price") {
             separated.push("price = ");
@@ -179,6 +189,14 @@ impl ItemRepository for PostgresItemRepository {
         if let Some(val) = patch_obj.get("data") {
             separated.push("data = ");
             separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("item_model") {
+            separated.push("item_model = ");
+            separated.push_bind_unseparated(val.as_str());
+        }
+        if let Some(val) = patch_obj.get("tooltip_style") {
+            separated.push("tooltip_style = ");
+            separated.push_bind_unseparated(val.as_str());
         }
 
         query_builder.push(" WHERE id = ");
