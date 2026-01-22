@@ -5,6 +5,7 @@ use std::{env, net::SocketAddr, sync::Arc};
 use axum::{
     Extension, Json, Router,
     body::Body,
+    extract::State,
     http::{
         HeaderValue, Method, Request, StatusCode,
         header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE},
@@ -16,7 +17,7 @@ use axum::{
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tower_http::cors::CorsLayer;
+use tower_http::{catch_panic::CatchPanicLayer, cors::CorsLayer};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
@@ -51,16 +52,35 @@ use routes::{
 };
 use shared::error::not_found_handler;
 
-pub async fn auth_middleware(req: Request<Body>, next: Next) -> Result<Response, Response> {
-    let secret = env::var("API_SECRET_KEY").expect("API_SECRET_KEY must be set in .env");
+#[derive(Clone)]
+pub struct AuthState {
+    api_secret: Option<Arc<str>>,
+}
+
+pub async fn auth_middleware(
+    State(state): State<AuthState>,
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response, Response> {
+    let Some(secret) = state.api_secret.as_deref() else {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "status": 500,
+                "code": "server_misconfigured",
+                "message": "API_SECRET_KEY is not configured"
+            })),
+        )
+            .into_response());
+    };
 
     let auth = req
         .headers()
-        .get("Authorization")
+        .get(AUTHORIZATION)
         .and_then(|v| v.to_str().ok());
 
     if let Some(auth_header) = auth
-        && auth_header.strip_prefix("Bearer ") == Some(secret.as_str())
+        && auth_header.strip_prefix("Bearer ") == Some(secret)
     {
         return Ok(next.run(req).await);
     }
@@ -94,6 +114,13 @@ async fn main() {
     let pool = connect_pg().await.expect("Failed to init DB");
 
     let oauth_state_store = Arc::new(OAuthStateStore::default());
+
+    let auth_state = AuthState {
+        api_secret: env::var("API_SECRET_KEY").ok().map(Arc::from),
+    };
+    if auth_state.api_secret.is_none() {
+        tracing::warn!("API_SECRET_KEY is not set; all requests will be rejected");
+    }
 
     let file_repo = PostgresFileRepository::new(pool.clone());
     let file_usecase = Arc::new(FileUsecaseImpl::new(file_repo)) as Arc<dyn FileUsecase>;
@@ -165,7 +192,8 @@ async fn main() {
         .layer(Extension(tx.clone()))
         .layer(Extension(pool.clone()))
         .layer(Extension(oauth_state_store))
-        .layer(middleware::from_fn(auth_middleware))
+        .layer(middleware::from_fn_with_state(auth_state, auth_middleware))
+        .layer(CatchPanicLayer::new())
         .layer(
             CorsLayer::new()
                 .allow_methods([
