@@ -17,7 +17,7 @@ use axum::{
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tower_http::cors::CorsLayer;
+use tower_http::{catch_panic::CatchPanicLayer, cors::CorsLayer};
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
@@ -193,6 +193,7 @@ async fn main() {
         .layer(Extension(pool.clone()))
         .layer(Extension(oauth_state_store))
         .layer(middleware::from_fn_with_state(auth_state, auth_middleware))
+        .layer(CatchPanicLayer::new())
         .layer(
             CorsLayer::new()
                 .allow_methods([
