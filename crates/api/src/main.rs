@@ -43,7 +43,10 @@ use routes::recipes::{
 use routes::status::{get_status, list_status};
 use routes::tickets::{create_ticket, find_ticket_by_id, list_tickets};
 use routes::{
-    files::{delete_file, find_all_files, get_file_by_id, upload_file},
+    files::{
+        abort_upload, complete_upload, create_upload, delete_file, get_file_by_id, get_part_url,
+        get_upload, list_files, register_part,
+    },
     tickets::{delete_ticket, patch_ticket},
 };
 use shared::error::not_found_handler;
@@ -129,8 +132,23 @@ async fn main() {
                 .delete(delete_recipe),
         )
         .layer(Extension(recipe_usecase))
-        .route("/v1/files", get(find_all_files).post(upload_file))
+        .route("/v1/files", get(list_files))
         .route("/v1/files/{id}", get(get_file_by_id).delete(delete_file))
+        .route("/v1/files/uploads", post(create_upload))
+        .route("/v1/files/uploads/{upload_id}", get(get_upload))
+        .route(
+            "/v1/files/uploads/{upload_id}/parts/{part_number}/url",
+            get(get_part_url),
+        )
+        .route(
+            "/v1/files/uploads/{upload_id}/parts/{part_number}",
+            post(register_part),
+        )
+        .route(
+            "/v1/files/uploads/{upload_id}/complete",
+            post(complete_upload),
+        )
+        .route("/v1/files/uploads/{upload_id}/abort", post(abort_upload))
         .layer(Extension(file_usecase))
         .route("/v1/status", get(list_status))
         .route("/v1/status/{server_id}", get(get_status))
