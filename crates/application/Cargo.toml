@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-rust-s3 = "0.35"
+rust-s3 = "0.37"
 anyhow = "1.0"
 async-trait = "0.1"
 tracing = { workspace = true }

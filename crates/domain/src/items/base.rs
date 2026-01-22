@@ -43,14 +43,17 @@ where
     #[serde(untagged)]
     enum CompatibleData {
         Single(CustomModelData),
-        LegacyInt(()),
+        LegacyInt(i64),
     }
 
     let data: Option<CompatibleData> = Option::deserialize(deserializer)?;
 
     match data {
         Some(CompatibleData::Single(c)) => Ok(Some(c)),
-        Some(CompatibleData::LegacyInt(_)) => Ok(None),
+        Some(CompatibleData::LegacyInt(legacy)) => {
+            let _ = legacy;
+            Ok(None)
+        }
         None => Ok(None),
     }
 }
