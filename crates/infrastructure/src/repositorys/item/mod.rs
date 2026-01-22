@@ -41,7 +41,7 @@ impl ItemRepository for PostgresItemRepository {
         let mut items = Vec::new();
 
         for row in rows {
-            let category_str: String = row.get("category");
+            let category_str: String = row.try_get("category")?;
             let item_category = match category_str.as_str() {
                 "weapon" => ItemCategory::Weapon,
                 "tool" => ItemCategory::Tool,
@@ -51,26 +51,27 @@ impl ItemRepository for PostgresItemRepository {
                 _ => continue,
             };
 
-            let cmd_value: Value = row.get("custom_model_data");
+            let cmd_value: Option<Value> = row.try_get("custom_model_data")?;
             let custom_model_data: Option<CustomModelData> = match cmd_value {
-                Value::Null | Value::Number(_) => None,
-                other => serde_json::from_value(other)?,
+                None => None,
+                Some(Value::Null | Value::Number(_)) => None,
+                Some(other) => serde_json::from_value(other)?,
             };
 
             let item = Item {
-                id: row.get("id"),
-                version: row.get("version"),
-                name: row.get("name"),
+                id: row.try_get("id")?,
+                version: row.try_get("version")?,
+                name: row.try_get("name")?,
                 category: item_category,
-                lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
-                rarity: row.get("rarity"),
-                max_stack: row.get("max_stack"),
+                lore: serde_json::from_value(row.try_get::<Value, _>("lore")?)?,
+                rarity: row.try_get("rarity")?,
+                max_stack: row.try_get("max_stack")?,
                 custom_model_data,
-                item_model: row.get("item_model"),
-                tooltip_style: row.get("tooltip_style"),
-                price: serde_json::from_value(row.get("price"))?,
-                tags: serde_json::from_value(row.get::<Value, _>("tags"))?,
-                data: row.get("data"),
+                item_model: row.try_get("item_model")?,
+                tooltip_style: row.try_get("tooltip_style")?,
+                price: serde_json::from_value(row.try_get("price")?)?,
+                tags: serde_json::from_value(row.try_get::<Value, _>("tags")?)?,
+                data: row.try_get("data")?,
             };
 
             items.push(item);
@@ -85,17 +86,18 @@ impl ItemRepository for PostgresItemRepository {
             .fetch_one(&self.pool)
             .await?;
 
-        let category_str: String = row.get("category");
-        let cmd_value: Value = row.get("custom_model_data");
+        let category_str: String = row.try_get("category")?;
+        let cmd_value: Option<Value> = row.try_get("custom_model_data")?;
         let custom_model_data: Option<CustomModelData> = match cmd_value {
-            Value::Null | Value::Number(_) => None,
-            other => serde_json::from_value(other)?,
+            None => None,
+            Some(Value::Null | Value::Number(_)) => None,
+            Some(other) => serde_json::from_value(other)?,
         };
 
         Ok(Item {
-            id: row.get("id"),
-            version: row.get("version"),
-            name: row.get("name"),
+            id: row.try_get("id")?,
+            version: row.try_get("version")?,
+            name: row.try_get("name")?,
             category: match category_str.to_lowercase().as_str() {
                 "weapon" => ItemCategory::Weapon,
                 "tool" => ItemCategory::Tool,
@@ -104,15 +106,15 @@ impl ItemRepository for PostgresItemRepository {
                 "armor" => ItemCategory::Armor,
                 _ => return Err(anyhow::anyhow!("Invalid category")),
             },
-            lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
-            rarity: row.get("rarity"),
-            max_stack: row.get("max_stack"),
+            lore: serde_json::from_value(row.try_get::<Value, _>("lore")?)?,
+            rarity: row.try_get("rarity")?,
+            max_stack: row.try_get("max_stack")?,
             custom_model_data,
-            item_model: row.get("item_model"),
-            tooltip_style: row.get("tooltip_style"),
-            price: serde_json::from_value(row.get("price"))?,
-            tags: serde_json::from_value(row.get::<Value, _>("tags"))?,
-            data: row.get("data"),
+            item_model: row.try_get("item_model")?,
+            tooltip_style: row.try_get("tooltip_style")?,
+            price: serde_json::from_value(row.try_get("price")?)?,
+            tags: serde_json::from_value(row.try_get::<Value, _>("tags")?)?,
+            data: row.try_get("data")?,
         })
     }
 
