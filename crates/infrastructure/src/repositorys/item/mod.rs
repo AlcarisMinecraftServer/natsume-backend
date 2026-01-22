@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use domain::items::{Item, ItemCategory};
+use domain::items::{CustomModelData, Item, ItemCategory};
 use serde_json::Value;
 use shared::error::AppResult;
 use sqlx::{PgPool, Row};
@@ -52,6 +52,10 @@ impl ItemRepository for PostgresItemRepository {
             };
 
             let cmd_value: Value = row.get("custom_model_data");
+            let custom_model_data: Option<CustomModelData> = match cmd_value {
+                Value::Null | Value::Number(_) => None,
+                other => serde_json::from_value(other)?,
+            };
 
             let item = Item {
                 id: row.get("id"),
@@ -61,7 +65,7 @@ impl ItemRepository for PostgresItemRepository {
                 lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
                 rarity: row.get("rarity"),
                 max_stack: row.get("max_stack"),
-                custom_model_data: serde_json::from_value(cmd_value)?,
+                custom_model_data,
                 item_model: row.get("item_model"),
                 tooltip_style: row.get("tooltip_style"),
                 price: serde_json::from_value(row.get("price"))?,
@@ -83,6 +87,10 @@ impl ItemRepository for PostgresItemRepository {
 
         let category_str: String = row.get("category");
         let cmd_value: Value = row.get("custom_model_data");
+        let custom_model_data: Option<CustomModelData> = match cmd_value {
+            Value::Null | Value::Number(_) => None,
+            other => serde_json::from_value(other)?,
+        };
 
         Ok(Item {
             id: row.get("id"),
@@ -99,7 +107,7 @@ impl ItemRepository for PostgresItemRepository {
             lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
             rarity: row.get("rarity"),
             max_stack: row.get("max_stack"),
-            custom_model_data: serde_json::from_value(cmd_value)?,
+            custom_model_data,
             item_model: row.get("item_model"),
             tooltip_style: row.get("tooltip_style"),
             price: serde_json::from_value(row.get("price"))?,
