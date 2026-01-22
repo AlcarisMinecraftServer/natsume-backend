@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use domain::items::{Item, ItemCategory};
-use serde_json::{Value, from_value, to_value};
+use serde_json::Value;
 use shared::error::AppResult;
 use sqlx::{PgPool, Row};
 
@@ -26,7 +26,15 @@ impl PostgresItemRepository {
 #[async_trait]
 impl ItemRepository for PostgresItemRepository {
     async fn fetch_all(&self, category: Option<String>) -> AppResult<Vec<Item>> {
-        let rows = sqlx::query("SELECT * FROM items")
+        let category_filter = category.map(|c| c.to_lowercase());
+
+        let query = r#"
+            SELECT * FROM items 
+            WHERE $1::text IS NULL OR category = $1
+        "#;
+
+        let rows: Vec<sqlx::postgres::PgRow> = sqlx::query(query)
+            .bind(category_filter)
             .fetch_all(&self.pool)
             .await?;
 
@@ -34,28 +42,28 @@ impl ItemRepository for PostgresItemRepository {
 
         for row in rows {
             let category_str: String = row.get("category");
-            if let Some(ref filter) = category {
-                if category_str.to_lowercase() != filter.to_lowercase() {
-                    continue;
-                }
-            }
+            let item_category = match category_str.as_str() {
+                "weapon" => ItemCategory::Weapon,
+                "tool" => ItemCategory::Tool,
+                "material" => ItemCategory::Material,
+                "food" => ItemCategory::Food,
+                "armor" => ItemCategory::Armor,
+                _ => continue,
+            };
+
+            let cmd_value: Value = row.get("custom_model_data");
 
             let item = Item {
                 id: row.get("id"),
                 version: row.get("version"),
                 name: row.get("name"),
-                category: match category_str.to_lowercase().as_str() {
-                    "weapon" => ItemCategory::Weapon,
-                    "tool" => ItemCategory::Tool,
-                    "material" => ItemCategory::Material,
-                    "food" => ItemCategory::Food,
-                    "armor" => ItemCategory::Armor,
-                    _ => continue,
-                },
+                category: item_category,
                 lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
                 rarity: row.get("rarity"),
                 max_stack: row.get("max_stack"),
-                custom_model_data: row.get("custom_model_data"),
+                custom_model_data: serde_json::from_value(cmd_value)?,
+                item_model: row.get("item_model"),
+                tooltip_style: row.get("tooltip_style"),
                 price: serde_json::from_value(row.get("price"))?,
                 tags: serde_json::from_value(row.get::<Value, _>("tags"))?,
                 data: row.get("data"),
@@ -74,6 +82,7 @@ impl ItemRepository for PostgresItemRepository {
             .await?;
 
         let category_str: String = row.get("category");
+        let cmd_value: Value = row.get("custom_model_data");
 
         Ok(Item {
             id: row.get("id"),
@@ -90,7 +99,9 @@ impl ItemRepository for PostgresItemRepository {
             lore: serde_json::from_value(row.get::<Value, _>("lore"))?,
             rarity: row.get("rarity"),
             max_stack: row.get("max_stack"),
-            custom_model_data: row.get("custom_model_data"),
+            custom_model_data: serde_json::from_value(cmd_value)?,
+            item_model: row.get("item_model"),
+            tooltip_style: row.get("tooltip_style"),
             price: serde_json::from_value(row.get("price"))?,
             tags: serde_json::from_value(row.get::<Value, _>("tags"))?,
             data: row.get("data"),
@@ -103,11 +114,12 @@ impl ItemRepository for PostgresItemRepository {
             INSERT INTO items (
                 id, version, name, category,
                 lore, rarity, max_stack, custom_model_data,
-                price, tags, data
+                price, tags, data, item_model, tooltip_style
             ) VALUES (
                 $1, $2, $3, $4,
-                to_jsonb($5), $6, $7, $8,
-                to_jsonb($9), to_jsonb($10), to_jsonb($11)
+                to_jsonb($5), $6, $7, to_jsonb($8),
+                to_jsonb($9), to_jsonb($10), to_jsonb($11),
+                $12, $13
             )
             "#,
         )
@@ -118,10 +130,12 @@ impl ItemRepository for PostgresItemRepository {
         .bind(serde_json::to_value(&item.lore)?)
         .bind(item.rarity)
         .bind(item.max_stack)
-        .bind(item.custom_model_data)
+        .bind(serde_json::to_value(&item.custom_model_data)?)
         .bind(serde_json::to_value(&item.price)?)
         .bind(serde_json::to_value(&item.tags)?)
         .bind(item.data)
+        .bind(&item.item_model)
+        .bind(&item.tooltip_style)
         .execute(&self.pool)
         .await?;
 
@@ -129,37 +143,67 @@ impl ItemRepository for PostgresItemRepository {
     }
 
     async fn patch(&self, id: &str, patch: Value) -> AppResult<()> {
-        let item: Item = from_value(patch)?;
+        let patch_obj = patch
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("Invalid JSON patch"))?;
 
-        sqlx::query(
-            r#"
-            UPDATE items SET
-                version = $1,
-                name = $2,
-                category = $3,
-                lore = to_jsonb($4),
-                rarity = $5,
-                max_stack = $6,
-                custom_model_data = $7,
-                price = to_jsonb($8),
-                tags = to_jsonb($9),
-                data = to_jsonb($10)
-            WHERE id = $11
-            "#,
-        )
-        .bind(item.version)
-        .bind(&item.name)
-        .bind(item.category.to_string())
-        .bind(to_value(&item.lore)?)
-        .bind(item.rarity)
-        .bind(item.max_stack)
-        .bind(item.custom_model_data)
-        .bind(to_value(&item.price)?)
-        .bind(to_value(&item.tags)?)
-        .bind(item.data)
-        .bind(id)
-        .execute(&self.pool)
-        .await?;
+        let mut query_builder = sqlx::QueryBuilder::new("UPDATE items SET ");
+        let mut separated = query_builder.separated(", ");
+
+        if let Some(val) = patch_obj.get("name") {
+            separated.push("name = ");
+            separated.push_bind_unseparated(val.as_str());
+        }
+        if let Some(val) = patch_obj.get("version") {
+            separated.push("version = ");
+            separated.push_bind_unseparated(val.as_i64());
+        }
+        if let Some(val) = patch_obj.get("category") {
+            separated.push("category = ");
+            separated.push_bind_unseparated(val.as_str());
+        }
+        if let Some(val) = patch_obj.get("lore") {
+            separated.push("lore = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("rarity") {
+            separated.push("rarity = ");
+            separated.push_bind_unseparated(val.as_i64());
+        }
+        if let Some(val) = patch_obj.get("max_stack") {
+            separated.push("max_stack = ");
+            separated.push_bind_unseparated(val.as_i64());
+        }
+        if let Some(val) = patch_obj.get("custom_model_data") {
+            separated.push("custom_model_data = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("price") {
+            separated.push("price = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("tags") {
+            separated.push("tags = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("data") {
+            separated.push("data = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("item_model") {
+            separated.push("item_model = ");
+            separated.push_bind_unseparated(val.as_str());
+        }
+        if let Some(val) = patch_obj.get("tooltip_style") {
+            separated.push("tooltip_style = ");
+            separated.push_bind_unseparated(val.as_str());
+        }
+
+        query_builder.push(" WHERE id = ");
+        query_builder.push_bind(id);
+
+        let query = query_builder.build();
+        query.execute(&self.pool).await?;
 
         Ok(())
     }

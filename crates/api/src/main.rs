@@ -6,17 +6,17 @@ use axum::{
     Extension, Json, Router,
     body::Body,
     http::{
-        Method, Request, StatusCode,
+        HeaderValue, Method, Request, StatusCode,
         header::{AUTHORIZATION, CONTENT_TYPE, LOCATION, SET_COOKIE},
     },
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::get,
+    routing::{get, post},
 };
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 use application::{
@@ -35,6 +35,7 @@ use infrastructure::{
     },
     status_watcher::start_status_watcher,
 };
+use routes::auth::{OAuthStateStore, discord_exchange, discord_login};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
 use routes::recipes::{
     create_recipe, delete_recipe, find_all_recipes, find_recipes_by_id, patch_recipe,
@@ -42,22 +43,26 @@ use routes::recipes::{
 use routes::status::{get_status, list_status};
 use routes::tickets::{create_ticket, find_ticket_by_id, list_tickets};
 use routes::{
-    files::{delete_file, find_all_files, get_file_by_id, upload_file},
+    files::{
+        abort_upload, complete_upload, create_upload, delete_file, get_file_by_id, get_part_url,
+        get_upload, list_files, register_part,
+    },
     tickets::{delete_ticket, patch_ticket},
 };
 use shared::error::not_found_handler;
 
 pub async fn auth_middleware(req: Request<Body>, next: Next) -> Result<Response, Response> {
-    let secret = env::var("API_SECRET_KEY").unwrap_or_default();
+    let secret = env::var("API_SECRET_KEY").expect("API_SECRET_KEY must be set in .env");
+
     let auth = req
         .headers()
         .get("Authorization")
         .and_then(|v| v.to_str().ok());
 
-    if let Some(auth_header) = auth {
-        if auth_header == format!("Bearer {}", secret) {
-            return Ok(next.run(req).await);
-        }
+    if let Some(auth_header) = auth
+        && auth_header.strip_prefix("Bearer ") == Some(secret.as_str())
+    {
+        return Ok(next.run(req).await);
     }
 
     Err((
@@ -82,11 +87,13 @@ async fn main() {
         .init();
 
     let port = env::var("HTTP_PORT")
-        .unwrap_or_else(|_| "3000".to_string())
+        .unwrap_or_else(|_| "9000".to_string())
         .parse::<u16>()
         .expect("Invalid port number in HTTP_PORT");
 
     let pool = connect_pg().await.expect("Failed to init DB");
+
+    let oauth_state_store = Arc::new(OAuthStateStore::default());
 
     let file_repo = PostgresFileRepository::new(pool.clone());
     let file_usecase = Arc::new(FileUsecaseImpl::new(file_repo)) as Arc<dyn FileUsecase>;
@@ -109,6 +116,8 @@ async fn main() {
     start_status_watcher(pool.clone()).await.unwrap();
 
     let app = Router::new()
+        .route("/v1/auth/discord/login", get(discord_login))
+        .route("/v1/auth/discord/exchange", post(discord_exchange))
         .route("/v1/items", get(find_all_items).post(create_item))
         .route(
             "/v1/items/{id}",
@@ -123,8 +132,23 @@ async fn main() {
                 .delete(delete_recipe),
         )
         .layer(Extension(recipe_usecase))
-        .route("/v1/files", get(find_all_files).post(upload_file))
+        .route("/v1/files", get(list_files))
         .route("/v1/files/{id}", get(get_file_by_id).delete(delete_file))
+        .route("/v1/files/uploads", post(create_upload))
+        .route("/v1/files/uploads/{upload_id}", get(get_upload))
+        .route(
+            "/v1/files/uploads/{upload_id}/parts/{part_number}/url",
+            get(get_part_url),
+        )
+        .route(
+            "/v1/files/uploads/{upload_id}/parts/{part_number}",
+            post(register_part),
+        )
+        .route(
+            "/v1/files/uploads/{upload_id}/complete",
+            post(complete_upload),
+        )
+        .route("/v1/files/uploads/{upload_id}/abort", post(abort_upload))
         .layer(Extension(file_usecase))
         .route("/v1/status", get(list_status))
         .route("/v1/status/{server_id}", get(get_status))
@@ -139,6 +163,8 @@ async fn main() {
         .layer(Extension(ticket_usecase))
         .merge(routes::ws::ws_router(tx.clone()))
         .layer(Extension(tx.clone()))
+        .layer(Extension(pool.clone()))
+        .layer(Extension(oauth_state_store))
         .layer(middleware::from_fn(auth_middleware))
         .layer(
             CorsLayer::new()
@@ -148,10 +174,24 @@ async fn main() {
                     Method::DELETE,
                     Method::PATCH,
                     Method::PUT,
+                    Method::OPTIONS,
                 ])
-                .allow_origin(Any)
-                .allow_headers([CONTENT_TYPE, AUTHORIZATION])
-                .expose_headers([LOCATION, SET_COOKIE]),
+                .allow_origin([
+                    "http://localhost:5173".parse::<HeaderValue>().unwrap(),
+                    "https://natsume.admin.alcaris.net"
+                        .parse::<HeaderValue>()
+                        .unwrap(),
+                ])
+                .allow_headers([
+                    CONTENT_TYPE,
+                    AUTHORIZATION,
+                    "x-actor-discord-id".parse().unwrap(),
+                    "x-actor-discord-username".parse().unwrap(),
+                    "x-actor-discord-global-name".parse().unwrap(),
+                    "x-actor-discord-avatar".parse().unwrap(),
+                ])
+                .expose_headers([LOCATION, SET_COOKIE])
+                .allow_credentials(true),
         )
         .fallback(not_found_handler);
 
