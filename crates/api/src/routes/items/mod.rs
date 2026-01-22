@@ -88,7 +88,8 @@ pub async fn find_all_items(
 
             let ids: Vec<String> = items.iter().map(|i| i.id.clone()).collect();
 
-            let mut map: std::collections::HashMap<String, LastActor> = std::collections::HashMap::new();
+            let mut map: std::collections::HashMap<String, LastActor> =
+                std::collections::HashMap::new();
             if !ids.is_empty() {
                 let rows = sqlx::query(
                     r#"
@@ -141,7 +142,11 @@ pub async fn find_all_items(
                 out.push(v);
             }
 
-            Json(ApiResponse { status: 200, data: out }).into_response()
+            Json(ApiResponse {
+                status: 200,
+                data: out,
+            })
+            .into_response()
         }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

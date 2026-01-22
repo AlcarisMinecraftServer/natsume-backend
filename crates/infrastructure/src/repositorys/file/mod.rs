@@ -10,12 +10,16 @@ pub trait FileRepository {
     async fn list_metadata(&self, user_id: Option<String>) -> AppResult<Vec<FileMetadata>>;
     async fn delete_metadata(&self, id: &str) -> AppResult<()>;
 
-     async fn create_upload(&self, upload: &FileUploadSession) -> AppResult<()>;
-     async fn find_upload(&self, upload_id: &str) -> AppResult<FileUploadSession>;
-     async fn list_upload_parts(&self, upload_id: &str) -> AppResult<Vec<FileUploadPart>>;
-     async fn upsert_upload_part(&self, upload_id: &str, part_number: i32, etag: &str)
-         -> AppResult<()>;
-     async fn delete_upload(&self, upload_id: &str) -> AppResult<()>;
+    async fn create_upload(&self, upload: &FileUploadSession) -> AppResult<()>;
+    async fn find_upload(&self, upload_id: &str) -> AppResult<FileUploadSession>;
+    async fn list_upload_parts(&self, upload_id: &str) -> AppResult<Vec<FileUploadPart>>;
+    async fn upsert_upload_part(
+        &self,
+        upload_id: &str,
+        part_number: i32,
+        etag: &str,
+    ) -> AppResult<()>;
+    async fn delete_upload(&self, upload_id: &str) -> AppResult<()>;
 }
 
 pub struct PostgresFileRepository {
@@ -124,8 +128,8 @@ impl FileRepository for PostgresFileRepository {
         Ok(())
     }
 
-     async fn create_upload(&self, upload: &FileUploadSession) -> AppResult<()> {
-         sqlx::query(
+    async fn create_upload(&self, upload: &FileUploadSession) -> AppResult<()> {
+        sqlx::query(
              "INSERT INTO file_uploads (upload_id, file_id, user_id, key, filename, content_type, size, part_size, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'in_progress')",
          )
          .bind(&upload.upload_id)
@@ -138,51 +142,51 @@ impl FileRepository for PostgresFileRepository {
          .bind(upload.part_size)
          .execute(&self.pool)
          .await?;
-         Ok(())
-     }
+        Ok(())
+    }
 
-     async fn find_upload(&self, upload_id: &str) -> AppResult<FileUploadSession> {
-         let row = sqlx::query("SELECT * FROM file_uploads WHERE upload_id = $1")
-             .bind(upload_id)
-             .fetch_one(&self.pool)
-             .await?;
+    async fn find_upload(&self, upload_id: &str) -> AppResult<FileUploadSession> {
+        let row = sqlx::query("SELECT * FROM file_uploads WHERE upload_id = $1")
+            .bind(upload_id)
+            .fetch_one(&self.pool)
+            .await?;
 
-         Ok(FileUploadSession {
-             upload_id: row.get("upload_id"),
-             file_id: row.get("file_id"),
-             user_id: row.get("user_id"),
-             key: row.get("key"),
-             filename: row.get("filename"),
-             content_type: row.get("content_type"),
-             size: row.get("size"),
-             part_size: row.get("part_size"),
-         })
-     }
+        Ok(FileUploadSession {
+            upload_id: row.get("upload_id"),
+            file_id: row.get("file_id"),
+            user_id: row.get("user_id"),
+            key: row.get("key"),
+            filename: row.get("filename"),
+            content_type: row.get("content_type"),
+            size: row.get("size"),
+            part_size: row.get("part_size"),
+        })
+    }
 
-     async fn list_upload_parts(&self, upload_id: &str) -> AppResult<Vec<FileUploadPart>> {
-         let rows = sqlx::query(
+    async fn list_upload_parts(&self, upload_id: &str) -> AppResult<Vec<FileUploadPart>> {
+        let rows = sqlx::query(
              "SELECT part_number, etag FROM file_upload_parts WHERE upload_id = $1 ORDER BY part_number",
          )
          .bind(upload_id)
          .fetch_all(&self.pool)
          .await?;
 
-         Ok(rows
-             .into_iter()
-             .map(|row| FileUploadPart {
-                 part_number: row.get("part_number"),
-                 etag: row.get("etag"),
-             })
-             .collect())
-     }
+        Ok(rows
+            .into_iter()
+            .map(|row| FileUploadPart {
+                part_number: row.get("part_number"),
+                etag: row.get("etag"),
+            })
+            .collect())
+    }
 
-     async fn upsert_upload_part(
-         &self,
-         upload_id: &str,
-         part_number: i32,
-         etag: &str,
-     ) -> AppResult<()> {
-         sqlx::query(
+    async fn upsert_upload_part(
+        &self,
+        upload_id: &str,
+        part_number: i32,
+        etag: &str,
+    ) -> AppResult<()> {
+        sqlx::query(
              "INSERT INTO file_upload_parts (upload_id, part_number, etag) VALUES ($1, $2, $3) ON CONFLICT (upload_id, part_number) DO UPDATE SET etag = EXCLUDED.etag",
          )
          .bind(upload_id)
@@ -191,19 +195,19 @@ impl FileRepository for PostgresFileRepository {
          .execute(&self.pool)
          .await?;
 
-         sqlx::query("UPDATE file_uploads SET updated_at = NOW() WHERE upload_id = $1")
-             .bind(upload_id)
-             .execute(&self.pool)
-             .await?;
+        sqlx::query("UPDATE file_uploads SET updated_at = NOW() WHERE upload_id = $1")
+            .bind(upload_id)
+            .execute(&self.pool)
+            .await?;
 
-         Ok(())
-     }
+        Ok(())
+    }
 
-     async fn delete_upload(&self, upload_id: &str) -> AppResult<()> {
-         sqlx::query("DELETE FROM file_uploads WHERE upload_id = $1")
-             .bind(upload_id)
-             .execute(&self.pool)
-             .await?;
-         Ok(())
-     }
+    async fn delete_upload(&self, upload_id: &str) -> AppResult<()> {
+        sqlx::query("DELETE FROM file_uploads WHERE upload_id = $1")
+            .bind(upload_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
 }

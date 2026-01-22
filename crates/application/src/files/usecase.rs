@@ -29,7 +29,10 @@ pub trait FileUsecase: Send + Sync {
         size: i64,
     ) -> AppResult<FileUploadSession>;
 
-    async fn get_upload(&self, upload_id: &str) -> AppResult<(FileUploadSession, Vec<FileUploadPart>)>;
+    async fn get_upload(
+        &self,
+        upload_id: &str,
+    ) -> AppResult<(FileUploadSession, Vec<FileUploadPart>)>;
 
     async fn get_part_upload_url(&self, upload_id: &str, part_number: i32) -> AppResult<String>;
 
@@ -68,9 +71,7 @@ impl<R: FileRepository + Send + Sync> FileUsecase for FileUsecaseImpl<R> {
         let key = format!("files/{}/{}/{}", user_id, file_id, filename);
 
         let bucket = make_bucket().await?;
-        let initiated = bucket
-            .initiate_multipart_upload(&key, content_type)
-            .await?;
+        let initiated = bucket.initiate_multipart_upload(&key, content_type).await?;
 
         let upload = FileUploadSession {
             upload_id: initiated.upload_id,
@@ -87,7 +88,10 @@ impl<R: FileRepository + Send + Sync> FileUsecase for FileUsecaseImpl<R> {
         Ok(upload)
     }
 
-    async fn get_upload(&self, upload_id: &str) -> AppResult<(FileUploadSession, Vec<FileUploadPart>)> {
+    async fn get_upload(
+        &self,
+        upload_id: &str,
+    ) -> AppResult<(FileUploadSession, Vec<FileUploadPart>)> {
         let upload = self.repo.find_upload(upload_id).await?;
         let parts = self.repo.list_upload_parts(upload_id).await?;
         Ok((upload, parts))

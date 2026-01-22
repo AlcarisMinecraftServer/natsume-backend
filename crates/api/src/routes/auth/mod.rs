@@ -1,4 +1,9 @@
-use std::{collections::HashMap, env, sync::Arc, time::{Duration, Instant}};
+use std::{
+    collections::HashMap,
+    env,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use axum::{
     Json,
@@ -38,9 +43,7 @@ pub struct DiscordLoginResponse {
     pub url: String,
 }
 
-pub async fn discord_login(
-    Extension(store): Extension<Arc<OAuthStateStore>>,
-) -> impl IntoResponse {
+pub async fn discord_login(Extension(store): Extension<Arc<OAuthStateStore>>) -> impl IntoResponse {
     let client_id = match env::var("DISCORD_CLIENT_ID") {
         Ok(v) => v,
         Err(_) => {
@@ -348,7 +351,7 @@ pub async fn discord_exchange(
         .filter(|s| !s.is_empty())
         .collect();
 
-    let has_allowed_role = member.roles.iter().any(|r| allowed.iter().any(|a| a == &r));
+    let has_allowed_role = member.roles.iter().any(|r| allowed.contains(&r.as_str()));
 
     if !has_allowed_role {
         return (

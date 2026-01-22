@@ -59,10 +59,10 @@ pub async fn auth_middleware(req: Request<Body>, next: Next) -> Result<Response,
         .get("Authorization")
         .and_then(|v| v.to_str().ok());
 
-    if let Some(auth_header) = auth {
-        if auth_header == format!("Bearer {}", secret) {
-            return Ok(next.run(req).await);
-        }
+    if let Some(auth_header) = auth
+        && auth_header.strip_prefix("Bearer ") == Some(secret.as_str())
+    {
+        return Ok(next.run(req).await);
     }
 
     Err((

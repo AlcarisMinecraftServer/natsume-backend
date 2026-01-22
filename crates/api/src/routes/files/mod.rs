@@ -20,7 +20,11 @@ pub async fn list_files(
     Query(FileListQuery { user_id }): Query<FileListQuery>,
 ) -> impl IntoResponse {
     match usecase.find_all_files(user_id).await {
-        Ok(files) => Json(ApiResponse { status: 200, data: files }).into_response(),
+        Ok(files) => Json(ApiResponse {
+            status: 200,
+            data: files,
+        })
+        .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
@@ -38,7 +42,11 @@ pub async fn get_file_by_id(
     Path(file_id): Path<String>,
 ) -> impl IntoResponse {
     match usecase.get_file_by_id(&file_id).await {
-        Ok(meta) => Json(ApiResponse { status: 200, data: meta }).into_response(),
+        Ok(meta) => Json(ApiResponse {
+            status: 200,
+            data: meta,
+        })
+        .into_response(),
         Err(e) => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({
@@ -91,7 +99,10 @@ pub struct UploadInitResponse {
 }
 
 fn cdn_url(user_id: &str, file_id: &str, filename: &str) -> String {
-    format!("https://cdn.alcaris.net/files/{}/{}/{}", user_id, file_id, filename)
+    format!(
+        "https://cdn.alcaris.net/files/{}/{}/{}",
+        user_id, file_id, filename
+    )
 }
 
 pub async fn create_upload(
@@ -126,7 +137,11 @@ pub async fn create_upload(
                 part_size: upload.part_size,
                 url: cdn_url(&upload.user_id, &upload.file_id, &upload.filename),
             };
-            Json(ApiResponse { status: 200, data: res }).into_response()
+            Json(ApiResponse {
+                status: 200,
+                data: res,
+            })
+            .into_response()
         }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -172,7 +187,11 @@ pub async fn get_upload(
                 url: cdn_url(&upload.user_id, &upload.file_id, &upload.filename),
                 parts,
             };
-            Json(ApiResponse { status: 200, data: res }).into_response()
+            Json(ApiResponse {
+                status: 200,
+                data: res,
+            })
+            .into_response()
         }
         Err(e) => (
             StatusCode::NOT_FOUND,
@@ -273,7 +292,11 @@ pub async fn complete_upload(
         )
         .await
     {
-        Ok(meta) => Json(ApiResponse { status: 200, data: meta }).into_response(),
+        Ok(meta) => Json(ApiResponse {
+            status: 200,
+            data: meta,
+        })
+        .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
