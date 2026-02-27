@@ -1,3 +1,4 @@
+mod audit;
 mod routes;
 
 use std::{env, net::SocketAddr, sync::Arc};
@@ -36,6 +37,7 @@ use infrastructure::{
     },
     status_watcher::start_status_watcher,
 };
+use routes::audit_logs::list_audit_logs;
 use routes::auth::{OAuthStateStore, discord_exchange, discord_login};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
 use routes::recipes::{
@@ -188,6 +190,7 @@ async fn main() {
                 .delete(delete_ticket),
         )
         .layer(Extension(ticket_usecase))
+        .route("/v1/audit-logs", get(list_audit_logs))
         .merge(routes::ws::ws_router(tx.clone()))
         .layer(Extension(tx.clone()))
         .layer(Extension(pool.clone()))

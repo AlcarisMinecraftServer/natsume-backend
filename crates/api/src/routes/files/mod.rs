@@ -6,8 +6,10 @@ use axum::{
     response::IntoResponse,
 };
 use domain::response::ApiResponse;
+use sqlx::PgPool;
 use std::sync::Arc;
 
+use crate::audit::{actor_from_headers, insert_audit_log};
 use application::files::FileUsecase;
 
 #[derive(Debug, serde::Deserialize)]
@@ -61,10 +63,23 @@ pub async fn get_file_by_id(
 
 pub async fn delete_file(
     Extension(usecase): Extension<Arc<dyn FileUsecase>>,
+    Extension(pool): Extension<PgPool>,
+    headers: HeaderMap,
     Path(file_id): Path<String>,
 ) -> impl IntoResponse {
+    let before_data = usecase
+        .get_file_by_id(&file_id)
+        .await
+        .ok()
+        .and_then(|m| serde_json::to_value(m).ok());
+
     match usecase.delete_file(&file_id).await {
-        Ok(_) => Json(serde_json::json!({ "message": "File deleted" })).into_response(),
+        Ok(_) => {
+            let actor = actor_from_headers(&headers);
+            insert_audit_log(&pool, "file", &file_id, "delete", before_data, None, actor).await;
+
+            Json(serde_json::json!({ "message": "File deleted" })).into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
@@ -261,42 +276,42 @@ pub async fn register_part(
 
 pub async fn complete_upload(
     Extension(usecase): Extension<Arc<dyn FileUsecase>>,
+    Extension(pool): Extension<PgPool>,
     headers: HeaderMap,
     Path(upload_id): Path<String>,
 ) -> impl IntoResponse {
-    let decode = |s: &str| {
-        urlencoding::decode(s)
-            .map(|c| c.into_owned())
-            .unwrap_or_else(|_| s.to_string())
-    };
+    let actor = actor_from_headers(&headers);
 
-    let get = |k: &str| {
-        headers
-            .get(k)
-            .and_then(|v| v.to_str().ok())
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .map(decode)
-    };
+    let uploader_username = actor.username.clone();
+    let uploader_global_name = actor.global_name.clone();
+    let uploader_avatar_url = actor.avatar_url.clone();
 
-    let uploader_username = get("x-actor-discord-username");
-    let uploader_global_name = get("x-actor-discord-global-name");
-    let uploader_avatar_url = get("x-actor-discord-avatar");
+    let uploader_username_opt = if uploader_username == "unknown" {
+        None
+    } else {
+        Some(uploader_username)
+    };
 
     match usecase
         .complete_upload(
             &upload_id,
-            uploader_username,
+            uploader_username_opt,
             uploader_global_name,
             uploader_avatar_url,
         )
         .await
     {
-        Ok(meta) => Json(ApiResponse {
-            status: 200,
-            data: meta,
-        })
-        .into_response(),
+        Ok(meta) => {
+            let file_id = meta.id.clone();
+            let after_data = serde_json::to_value(&meta).ok();
+            insert_audit_log(&pool, "file", &file_id, "create", None, after_data, actor).await;
+
+            Json(ApiResponse {
+                status: 200,
+                data: meta,
+            })
+            .into_response()
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({

@@ -35,6 +35,4 @@ pub struct Base {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct WeaponUpgrade {
-    // TODO: 後で
-}
+pub struct WeaponUpgrade {}
