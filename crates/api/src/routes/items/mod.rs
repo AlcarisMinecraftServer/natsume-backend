@@ -222,16 +222,7 @@ pub async fn patch_item(
                 tracing::warn!("failed to insert item_audit_logs: {e}");
             }
 
-            insert_audit_log(
-                &pool,
-                "item",
-                &id,
-                "update",
-                before_data,
-                after_data,
-                actor,
-            )
-            .await;
+            insert_audit_log(&pool, "item", &id, "update", before_data, after_data, actor).await;
 
             let msg = make_message("update", "item", &actor_name, "web");
             let _ = tx.send(msg);

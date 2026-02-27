@@ -56,7 +56,10 @@ pub async fn create_ticket(
     match usecase.create(ticket).await {
         Ok(_) => {
             let actor = actor_from_headers(&headers);
-            insert_audit_log(&pool, "ticket", &ticket_id, "create", None, after_data, actor).await;
+            insert_audit_log(
+                &pool, "ticket", &ticket_id, "create", None, after_data, actor,
+            )
+            .await;
 
             (
                 StatusCode::CREATED,

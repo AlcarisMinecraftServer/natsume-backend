@@ -37,6 +37,7 @@ use infrastructure::{
     },
     status_watcher::start_status_watcher,
 };
+use routes::audit_logs::list_audit_logs;
 use routes::auth::{OAuthStateStore, discord_exchange, discord_login};
 use routes::items::{create_item, delete_item, find_all_items, find_item_by_id, patch_item};
 use routes::recipes::{
@@ -51,7 +52,6 @@ use routes::{
     },
     tickets::{delete_ticket, patch_ticket},
 };
-use routes::audit_logs::list_audit_logs;
 use shared::error::not_found_handler;
 
 #[derive(Clone)]

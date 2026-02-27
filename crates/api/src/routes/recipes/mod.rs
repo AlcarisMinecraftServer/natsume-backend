@@ -75,7 +75,10 @@ pub async fn create_recipe(
     match usecase.create(recipe).await {
         Ok(_) => {
             let actor = actor_from_headers(&headers);
-            insert_audit_log(&pool, "recipe", &recipe_id, "create", None, after_data, actor).await;
+            insert_audit_log(
+                &pool, "recipe", &recipe_id, "create", None, after_data, actor,
+            )
+            .await;
 
             (
                 StatusCode::CREATED,
