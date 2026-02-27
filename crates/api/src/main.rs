@@ -1,3 +1,4 @@
+mod audit;
 mod routes;
 
 use std::{env, net::SocketAddr, sync::Arc};
@@ -50,6 +51,7 @@ use routes::{
     },
     tickets::{delete_ticket, patch_ticket},
 };
+use routes::audit_logs::list_audit_logs;
 use shared::error::not_found_handler;
 
 #[derive(Clone)]
@@ -188,6 +190,7 @@ async fn main() {
                 .delete(delete_ticket),
         )
         .layer(Extension(ticket_usecase))
+        .route("/v1/audit-logs", get(list_audit_logs))
         .merge(routes::ws::ws_router(tx.clone()))
         .layer(Extension(tx.clone()))
         .layer(Extension(pool.clone()))

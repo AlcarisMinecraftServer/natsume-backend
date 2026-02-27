@@ -12,59 +12,11 @@ use serde_json::Value;
 use sqlx::{PgPool, Row};
 use tokio::sync::broadcast::Sender;
 
+use crate::audit::{actor_from_headers, insert_audit_log};
 use crate::routes::ws::make_message;
 use application::items::ItemUsecase;
 use domain::{items::Item, response::ApiResponse};
 use shared::error::item_not_found;
-
-#[derive(Debug, Clone)]
-struct Actor {
-    discord_id: Option<String>,
-    username: String,
-    global_name: Option<String>,
-    avatar_url: Option<String>,
-}
-
-fn actor_from_headers(headers: &HeaderMap) -> Actor {
-    let decode = |s: &str| {
-        urlencoding::decode(s)
-            .map(|c| c.into_owned())
-            .unwrap_or_else(|_| s.to_string())
-    };
-
-    let get = |k: &str| {
-        headers
-            .get(k)
-            .and_then(|v| v.to_str().ok())
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .map(decode)
-    };
-
-    Actor {
-        discord_id: get("x-actor-discord-id"),
-        username: get("x-actor-discord-username").unwrap_or_else(|| "unknown".to_string()),
-        global_name: get("x-actor-discord-global-name"),
-        avatar_url: get("x-actor-discord-avatar"),
-    }
-}
-
-async fn insert_audit_log(pool: &PgPool, action: &str, item_id: &str, actor: Actor) {
-    if let Err(e) = sqlx::query(
-        "INSERT INTO item_audit_logs (action, item_id, actor_discord_id, actor_username, actor_global_name, actor_avatar_url) VALUES ($1, $2, $3, $4, $5, $6)",
-    )
-    .bind(action)
-    .bind(item_id)
-    .bind(actor.discord_id)
-    .bind(actor.username)
-    .bind(actor.global_name)
-    .bind(actor.avatar_url)
-    .execute(pool)
-    .await
-    {
-        tracing::warn!("failed to insert item_audit_logs: {e}");
-    }
-}
 
 #[derive(Debug, serde::Deserialize)]
 pub struct ListItemQuery {
@@ -182,12 +134,29 @@ pub async fn create_item(
     Json(item): Json<Item>,
 ) -> impl IntoResponse {
     let item_id = item.id.clone();
+    let after_data = serde_json::to_value(&item).ok();
 
     match usecase.create(item).await {
         Ok(_) => {
             let actor = actor_from_headers(&headers);
             let actor_name = actor.username.clone();
-            insert_audit_log(&pool, "create", &item_id, actor).await;
+
+            if let Err(e) = sqlx::query(
+                "INSERT INTO item_audit_logs (action, item_id, actor_discord_id, actor_username, actor_global_name, actor_avatar_url) VALUES ($1, $2, $3, $4, $5, $6)",
+            )
+            .bind("create")
+            .bind(&item_id)
+            .bind(actor.discord_id.as_deref())
+            .bind(&actor.username)
+            .bind(actor.global_name.as_deref())
+            .bind(actor.avatar_url.as_deref())
+            .execute(&pool)
+            .await
+            {
+                tracing::warn!("failed to insert item_audit_logs: {e}");
+            }
+
+            insert_audit_log(&pool, "item", &item_id, "create", None, after_data, actor).await;
 
             let msg = make_message("create", "item", &actor_name, "web");
             let _ = tx.send(msg);
@@ -221,11 +190,48 @@ pub async fn patch_item(
     Path(id): Path<String>,
     Json(patch): Json<Value>,
 ) -> impl IntoResponse {
+    let before_data = usecase
+        .find_by_id(&id)
+        .await
+        .ok()
+        .and_then(|item| serde_json::to_value(item).ok());
+
     match usecase.patch(&id, patch).await {
         Ok(_) => {
+            let after_data = usecase
+                .find_by_id(&id)
+                .await
+                .ok()
+                .and_then(|item| serde_json::to_value(item).ok());
+
             let actor = actor_from_headers(&headers);
             let actor_name = actor.username.clone();
-            insert_audit_log(&pool, "update", &id, actor).await;
+
+            if let Err(e) = sqlx::query(
+                "INSERT INTO item_audit_logs (action, item_id, actor_discord_id, actor_username, actor_global_name, actor_avatar_url) VALUES ($1, $2, $3, $4, $5, $6)",
+            )
+            .bind("update")
+            .bind(&id)
+            .bind(actor.discord_id.as_deref())
+            .bind(&actor.username)
+            .bind(actor.global_name.as_deref())
+            .bind(actor.avatar_url.as_deref())
+            .execute(&pool)
+            .await
+            {
+                tracing::warn!("failed to insert item_audit_logs: {e}");
+            }
+
+            insert_audit_log(
+                &pool,
+                "item",
+                &id,
+                "update",
+                before_data,
+                after_data,
+                actor,
+            )
+            .await;
 
             let msg = make_message("update", "item", &actor_name, "web");
             let _ = tx.send(msg);
@@ -255,11 +261,33 @@ pub async fn delete_item(
     headers: HeaderMap,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
+    let before_data = usecase
+        .find_by_id(&id)
+        .await
+        .ok()
+        .and_then(|item| serde_json::to_value(item).ok());
+
     match usecase.delete(&id).await {
         Ok(_) => {
             let actor = actor_from_headers(&headers);
             let actor_name = actor.username.clone();
-            insert_audit_log(&pool, "delete", &id, actor).await;
+
+            if let Err(e) = sqlx::query(
+                "INSERT INTO item_audit_logs (action, item_id, actor_discord_id, actor_username, actor_global_name, actor_avatar_url) VALUES ($1, $2, $3, $4, $5, $6)",
+            )
+            .bind("delete")
+            .bind(&id)
+            .bind(actor.discord_id.as_deref())
+            .bind(&actor.username)
+            .bind(actor.global_name.as_deref())
+            .bind(actor.avatar_url.as_deref())
+            .execute(&pool)
+            .await
+            {
+                tracing::warn!("failed to insert item_audit_logs: {e}");
+            }
+
+            insert_audit_log(&pool, "item", &id, "delete", before_data, None, actor).await;
 
             let msg = make_message("delete", "item", &actor_name, "web");
             let _ = tx.send(msg);
