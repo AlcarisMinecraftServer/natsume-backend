@@ -1,4 +1,4 @@
-use super::{ArmorData, FoodData, ToolData, WeaponData};
+use super::{ArmorData, FoodData, MaterialData, ToolData, WeaponData};
 use serde::{Deserialize, Deserializer, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -77,6 +77,7 @@ pub enum ItemData {
     Food(FoodData),
     Tool(ToolData),
     Armor(ArmorData),
+    Material(MaterialData),
 }
 
 impl std::fmt::Display for ItemCategory {
