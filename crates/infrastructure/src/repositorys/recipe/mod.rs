@@ -29,7 +29,7 @@ impl RecipeRepository for PostgresRecipeRepository {
         let rows = if let Some(category) = category {
             sqlx::query(
                 r#"
-                SELECT id, category, inputs, output, is_hidden, cooldown, unlock_level
+                SELECT id, category, materials, product, is_hidden, cooldown, unlock_level
                 FROM recipes
                 WHERE category = $1
                 "#,
@@ -40,7 +40,7 @@ impl RecipeRepository for PostgresRecipeRepository {
         } else {
             sqlx::query(
                 r#"
-                SELECT id, category, inputs, output, is_hidden, cooldown, unlock_level
+                SELECT id, category, materials, product, is_hidden, cooldown, unlock_level
                 FROM recipes
                 "#,
             )
@@ -53,8 +53,8 @@ impl RecipeRepository for PostgresRecipeRepository {
             .map(|row| Recipe {
                 id: row.get("id"),
                 category: row.get("category"),
-                inputs: serde_json::from_value(row.get("inputs")).unwrap_or_default(),
-                output: serde_json::from_value(row.get("output")).unwrap(),
+                materials: serde_json::from_value(row.get("materials")).unwrap_or_default(),
+                product: serde_json::from_value(row.get("product")).unwrap(),
                 is_hidden: row.get("is_hidden"),
                 cooldown: row.get("cooldown"),
                 unlock_level: row.get("unlock_level"),
@@ -67,7 +67,7 @@ impl RecipeRepository for PostgresRecipeRepository {
     async fn find_by_id(&self, id: &str) -> AppResult<Recipe> {
         let row = sqlx::query(
             r#"
-            SELECT id, category, inputs, output, is_hidden, cooldown, unlock_level
+            SELECT id, category, materials, product, is_hidden, cooldown, unlock_level
             FROM recipes WHERE id = $1
             "#,
         )
@@ -78,8 +78,8 @@ impl RecipeRepository for PostgresRecipeRepository {
         Ok(Recipe {
             id: row.get("id"),
             category: row.get("category"),
-            inputs: serde_json::from_value(row.get("inputs")).unwrap_or_default(),
-            output: serde_json::from_value(row.get("output")).unwrap(),
+            materials: serde_json::from_value(row.get("materials")).unwrap_or_default(),
+            product: serde_json::from_value(row.get("product")).unwrap(),
             is_hidden: row.get("is_hidden"),
             cooldown: row.get("cooldown"),
             unlock_level: row.get("unlock_level"),
@@ -90,7 +90,7 @@ impl RecipeRepository for PostgresRecipeRepository {
         sqlx::query(
             r#"
             INSERT INTO recipes (
-                id, category, inputs, output, is_hidden, cooldown, unlock_level
+                id, category, materials, product, is_hidden, cooldown, unlock_level
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7
             )
@@ -98,8 +98,8 @@ impl RecipeRepository for PostgresRecipeRepository {
         )
         .bind(&recipe.id)
         .bind(&recipe.category)
-        .bind(serde_json::to_value(&recipe.inputs)?)
-        .bind(serde_json::to_value(&recipe.output)?)
+        .bind(serde_json::to_value(&recipe.materials)?)
+        .bind(serde_json::to_value(&recipe.product)?)
         .bind(recipe.is_hidden)
         .bind(recipe.cooldown)
         .bind(recipe.unlock_level)
@@ -109,12 +109,44 @@ impl RecipeRepository for PostgresRecipeRepository {
     }
 
     async fn patch(&self, id: &str, patch: Value) -> AppResult<()> {
-        let patch_sql = "UPDATE recipes SET data = data || $1 WHERE id = $2";
-        sqlx::query(patch_sql)
-            .bind(patch)
-            .bind(id)
-            .execute(&self.pool)
-            .await?;
+        let patch_obj = patch
+            .as_object()
+            .ok_or_else(|| anyhow::anyhow!("Invalid JSON patch"))?;
+
+        let mut query_builder = sqlx::QueryBuilder::new("UPDATE recipes SET ");
+        let mut separated = query_builder.separated(", ");
+
+        if let Some(val) = patch_obj.get("category") {
+            separated.push("category = ");
+            separated.push_bind_unseparated(val.as_str());
+        }
+        if let Some(val) = patch_obj.get("materials") {
+            separated.push("materials = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("product") {
+            separated.push("product = ");
+            separated.push_bind_unseparated(val);
+        }
+        if let Some(val) = patch_obj.get("is_hidden") {
+            separated.push("is_hidden = ");
+            separated.push_bind_unseparated(val.as_bool());
+        }
+        if let Some(val) = patch_obj.get("cooldown") {
+            separated.push("cooldown = ");
+            separated.push_bind_unseparated(val.as_i64().map(|v| v as i32));
+        }
+        if let Some(val) = patch_obj.get("unlock_level") {
+            separated.push("unlock_level = ");
+            separated.push_bind_unseparated(val.as_i64().map(|v| v as i32));
+        }
+
+        query_builder.push(" WHERE id = ");
+        query_builder.push_bind(id);
+
+        let query = query_builder.build();
+        query.execute(&self.pool).await?;
+
         Ok(())
     }
 
